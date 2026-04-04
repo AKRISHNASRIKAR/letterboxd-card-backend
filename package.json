@@ -10,5 +10,14 @@
     "p-retry": "^8.0.0",
     "p-throttle": "^8.1.0",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/cheerio": "^0.22.35",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.2",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
   }
 }
