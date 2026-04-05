@@ -1,1 +1,0 @@
-// Card renderer (React/TSX)

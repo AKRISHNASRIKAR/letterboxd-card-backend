@@ -1,1 +1,15 @@
-// Selectors logic
+export const SELECTORS = {
+  username:    ".profile-person-summary .title-3",
+  displayName: ".profile-person-summary h1",
+  memberSince: ".profile-metadata dd",
+  totalFilms:  'a[href*="/films/"] .value',
+  thisYear:    'a[href*="/films/year/"] .value',
+  following:   'a[href*="/following/"] .value',
+  followers:   'a[href*="/followers/"] .value',
+  lists:       'a[href*="/lists/"] .value',
+  avatar:      ".profile-person-summary .avatar img",
+  recentFilms: ".poster-list .film-poster",
+  filmName:    'img[alt]',
+  filmRating:  ".rating",
+  filmYear:    ".frame-title",
+} as const
