@@ -3,7 +3,7 @@ export const SELECTORS = {
   displayName: ".profile-person-summary h1",
   memberSince: ".profile-metadata dd",
   totalFilms:  'a[href*="/films/"] .value',
-  thisYear:    'a[href*="/films/year/"] .value',
+  thisYear:    'a[href*="/diary/for/"] .value',
   following:   'a[href*="/following/"] .value',
   followers:   'a[href*="/followers/"] .value',
   lists:       'a[href*="/lists/"] .value',
