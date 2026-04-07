@@ -1,5 +1,4 @@
 // src/services/card/renderer.tsx
-import { ImageResponse } from "@vercel/og";
 import React from "react";
 import { getTheme } from "./themes";
 import type { LetterboxdStats, CardParams } from "../../types/letterboxd";
@@ -8,6 +7,9 @@ export async function renderCard(
   stats: LetterboxdStats,
   params: CardParams,
 ): Promise<Buffer> {
+  // Dynamic import so ESM-only @vercel/og can be loaded from a CJS module
+  const { ImageResponse } = await import("@vercel/og");
+
   const t = getTheme(params.theme);
   const w = params.width;
   const h = Math.round(w * 0.5); // 2:1 ratio
@@ -39,25 +41,16 @@ export async function renderCard(
       {/* Stats row */}
       <div style={{ display: "flex", gap: 24, marginBottom: 20 }}>
         {[
-          { label: "Films", value: stats.stats.totalFilms },
-          { label: "This year", value: stats.stats.thisYear },
-          { label: "Lists", value: stats.stats.lists },
-          { label: "Following", value: stats.stats.following },
+          { label: "Films",     value: stats.stats.totalFilms },
+          { label: "This year", value: stats.stats.thisYear   },
+          { label: "Lists",     value: stats.stats.lists      },
+          { label: "Following", value: stats.stats.following  },
         ].map((s) => (
-          <div
-            key={s.label}
-            style={{ display: "flex", flexDirection: "column" }}
-          >
+          <div key={s.label} style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 28, fontWeight: 700, color: t.accent }}>
               {s.value.toLocaleString()}
             </span>
-            <span
-              style={{
-                fontSize: 10,
-                color: t.muted,
-                textTransform: "uppercase",
-              }}
-            >
+            <span style={{ fontSize: 10, color: t.muted, textTransform: "uppercase" }}>
               {s.label}
             </span>
           </div>
