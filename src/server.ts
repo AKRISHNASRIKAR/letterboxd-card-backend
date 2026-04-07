@@ -8,20 +8,21 @@ import routes from "./routes"
 
 const app = express()
 
-// Allow listed origins: production frontend + localhost for dev
-const ALLOWED_ORIGINS = [
-  process.env.FRONTEND_URL,
+// Production origins — strip any trailing slash from env var
+const PROD_ORIGINS = [
+  (process.env.FRONTEND_URL ?? "").replace(/\/+$/, ""),
   "https://letterboxd-card.vercel.app",
-  "http://localhost:3000",
-  "http://localhost:3001",
-].filter(Boolean) as string[]
+].filter(Boolean)
 
 app.use(helmet())
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow requests with no origin (curl, Postman, server-to-server)
+    // No origin = curl / Postman / server-to-server — always allow
     if (!origin) return cb(null, true)
-    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
+    // Allow every localhost port for local dev (3000, 3001, 3002, …)
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true)
+    // Allow configured production frontend URLs
+    if (PROD_ORIGINS.includes(origin)) return cb(null, true)
     cb(new Error(`CORS: origin ${origin} not allowed`))
   },
   credentials: true,
