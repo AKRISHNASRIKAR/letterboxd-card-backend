@@ -16,15 +16,7 @@ const PROD_ORIGINS = [
 
 app.use(helmet())
 app.use(cors({
-  origin: (origin, cb) => {
-    // No origin = curl / Postman / server-to-server — always allow
-    if (!origin) return cb(null, true)
-    // Allow every localhost port for local dev (3000, 3001, 3002, …)
-    if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true)
-    // Allow configured production frontend URLs
-    if (PROD_ORIGINS.includes(origin)) return cb(null, true)
-    cb(new Error(`CORS: origin ${origin} not allowed`))
-  },
+  origin: true, // Reflects the request origin, allowing all origins
   credentials: true,
 }))
 app.use(express.json())
