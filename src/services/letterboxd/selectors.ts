@@ -11,7 +11,7 @@ export const SELECTORS = {
   lists:       'a[href*="/lists/"] .value',
   // avatar is the first img inside .profile-avatar
   avatar:      ".profile-avatar img",
-  // recent films are react-component divs with data-item-slug inside the poster-grid
-  recentFilms: ".poster-grid .react-component[data-item-slug]",
+  // recent watches live in #recent-activity (NOT the favorites .poster-grid)
+  recentFilms: "#recent-activity .react-component[data-item-slug]",
   filmRating:  ".rating",
 } as const

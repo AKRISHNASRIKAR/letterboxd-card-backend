@@ -6,7 +6,7 @@ import { getCached, setCached } from "../services/cache.service"
 export async function getStats(req: Request, res: Response, next: NextFunction) {
   try {
     const { user } = res.locals.params
-    const key    = `stats:v2:${user}`
+    const key    = `stats:v3:${user}`
     const cached = await getCached(key)
     if (cached) return res.json({ data: cached, cached: true })
  

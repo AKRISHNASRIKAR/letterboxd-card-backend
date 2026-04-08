@@ -8,7 +8,7 @@ export async function getCard(req: Request, res: Response, next: NextFunction) {
   try {
     const { user, theme, width, count } = res.locals.params
  
-    const statsKey = `stats:v2:${user}`
+    const statsKey = `stats:v3:${user}`
     let stats: Awaited<ReturnType<typeof scrapeStats>> | null =
       (await getCached(statsKey)) as Awaited<ReturnType<typeof scrapeStats>> | null
     if (!stats) {
