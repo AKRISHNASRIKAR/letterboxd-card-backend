@@ -8,7 +8,7 @@ export async function getCard(req: Request, res: Response, next: NextFunction) {
   try {
     const { user, theme, width, count } = res.locals.params
  
-    const statsKey = `stats:${user}`
+    const statsKey = `stats:v2:${user}`
     let stats: Awaited<ReturnType<typeof scrapeStats>> | null =
       (await getCached(statsKey)) as Awaited<ReturnType<typeof scrapeStats>> | null
     if (!stats) {
@@ -16,12 +16,12 @@ export async function getCard(req: Request, res: Response, next: NextFunction) {
       await setCached(statsKey, stats, 3600)
     }
  
-    const svg = await renderCard(stats, { user, theme, width: +width, count: +count })
+    const png = await renderCard(stats, { user, theme, width: +width, count: +count })
 
-    res.setHeader("Content-Type", "image/svg+xml")
+    res.setHeader("Content-Type", "image/png")
     res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=86400")
     res.setHeader("X-Cache", stats ? "HIT" : "MISS")
-    res.send(svg)
+    res.send(png)
   } catch (err) {
     next(err)
   }

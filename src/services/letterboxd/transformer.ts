@@ -1,14 +1,14 @@
 import type { LetterboxdStats } from "../../types/letterboxd"
 import type { parseProfile }    from "./parser"
- 
+
 type Raw = ReturnType<typeof parseProfile>
- 
-function slugToPath(slug: string): string {
-  // "hereditary" -> "h/e/r/e/hereditary"
-  return `${slug[0]}/${slug[1]}/${slug[2]}/${slug[3]}/${slug}`
+
+function filmIdToPath(filmId: string): string {
+  // "44542" -> "4/4/5/4/2/44542"
+  return filmId.split("").join("/") + "/" + filmId
 }
- 
-export function transform(raw: Raw): LetterboxdStats {;
+
+export function transform(raw: Raw): LetterboxdStats {
   return {
     username:    raw.username,
     displayName: raw.displayName || raw.username,
@@ -26,7 +26,9 @@ export function transform(raw: Raw): LetterboxdStats {;
       name:      f.name,
       rating:    f.rating,
       year:      f.year,
-      posterUrl: `https://a.ltrbxd.com/resized/film-poster/${slugToPath(f.slug)}-0-500-0-750-crop.jpg`,
+      posterUrl: f.filmId
+        ? `https://a.ltrbxd.com/resized/film-poster/${filmIdToPath(f.filmId)}-${f.slug}-0-230-0-345-crop.jpg`
+        : "",
     })),
     fetchedAt: Date.now(),
   }

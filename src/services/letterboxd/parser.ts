@@ -12,8 +12,9 @@ export function parseProfile(html: string) {
     const year      = yearMatch ? yearMatch[1] : ""
     const name      = rawName.replace(/\s*\(\d{4}\)$/, "").trim()
     const slug      = $(el).attr("data-item-slug") ?? ""
+    const filmId    = $(el).attr("data-film-id") ?? ""
     const rating    = $(el).closest(".griditem").find(SELECTORS.filmRating).first().text().trim()
-    return { slug, name, rating, year }
+    return { slug, name, rating, year, filmId }
   }).get()
 
   return {
