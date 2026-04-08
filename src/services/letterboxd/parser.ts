@@ -8,12 +8,10 @@ export function parseProfile(html: string) {
 
   const recentFilms = $(SELECTORS.recentFilms).slice(0, 8).map((_, el) => {
     const rawName  = $(el).attr("data-item-name") ?? ""
-    // data-item-name is e.g. "Project Hail Mary (2026)" — split year out
     const yearMatch = rawName.match(/\((\d{4})\)$/)
     const year      = yearMatch ? yearMatch[1] : ""
     const name      = rawName.replace(/\s*\(\d{4}\)$/, "").trim()
     const slug      = $(el).attr("data-item-slug") ?? ""
-    // rating lives in the sibling .poster-viewingdata inside the same griditem
     const rating    = $(el).closest(".griditem").find(SELECTORS.filmRating).first().text().trim()
     return { slug, name, rating, year }
   }).get()

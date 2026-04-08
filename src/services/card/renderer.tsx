@@ -1,20 +1,31 @@
 // src/services/card/renderer.tsx
 import React from "react";
+import satori from "satori";
 import { getTheme } from "./themes";
 import type { LetterboxdStats, CardParams } from "../../types/letterboxd";
+
+// Cache the font data so we only fetch once per cold start
+let fontDataCache: ArrayBuffer | null = null;
+
+async function loadFont(): Promise<ArrayBuffer> {
+  if (fontDataCache) return fontDataCache;
+  const res = await fetch(
+    "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf"
+  );
+  fontDataCache = await res.arrayBuffer();
+  return fontDataCache;
+}
 
 export async function renderCard(
   stats: LetterboxdStats,
   params: CardParams,
-): Promise<Buffer> {
-  // Dynamic import so ESM-only @vercel/og can be loaded from a CJS module
-  const { ImageResponse } = await import("@vercel/og");
-
+): Promise<string> {
+  const fontData = await loadFont();
   const t = getTheme(params.theme);
   const w = params.width;
   const h = Math.round(w * 0.5); // 2:1 ratio
 
-  const response = new ImageResponse(
+  const svg = await satori(
     <div
       style={{
         display: "flex",
@@ -23,7 +34,7 @@ export async function renderCard(
         height: "100%",
         background: t.background,
         padding: "24px",
-        fontFamily: "sans-serif",
+        fontFamily: "Inter, sans-serif",
         border: `1px solid ${t.border}`,
         borderRadius: "12px",
       }}
@@ -79,9 +90,19 @@ export async function renderCard(
         ))}
       </div>
     </div>,
-    { width: w, height: h },
+    {
+      width: w,
+      height: h,
+      fonts: [
+        {
+          name: "Inter",
+          data: fontData,
+          weight: 400,
+          style: "normal" as const,
+        },
+      ],
+    },
   );
 
-  const buf = await response.arrayBuffer();
-  return Buffer.from(buf);
+  return svg;
 }

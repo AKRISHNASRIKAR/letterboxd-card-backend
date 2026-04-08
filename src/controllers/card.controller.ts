@@ -16,12 +16,12 @@ export async function getCard(req: Request, res: Response, next: NextFunction) {
       await setCached(statsKey, stats, 3600)
     }
  
-    const png = await renderCard(stats, { user, theme, width: +width, count: +count })
- 
-    res.setHeader("Content-Type", "image/png")
+    const svg = await renderCard(stats, { user, theme, width: +width, count: +count })
+
+    res.setHeader("Content-Type", "image/svg+xml")
     res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=86400")
     res.setHeader("X-Cache", stats ? "HIT" : "MISS")
-    res.send(png)
+    res.send(svg)
   } catch (err) {
     next(err)
   }
