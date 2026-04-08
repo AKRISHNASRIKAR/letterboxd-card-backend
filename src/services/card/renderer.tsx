@@ -1,51 +1,56 @@
 // src/services/card/renderer.tsx
-// Uses satori directly (SVG) — no WASM, works reliably on @vercel/node
+// Satori uses box-sizing: border-box (yoga-layout) — all widths include padding.
 import React from "react";
 import satori from "satori";
 import type { LetterboxdStats, CardParams } from "../../types/letterboxd";
 
-// ── Font (cached after first cold-start fetch) ───────────────────────────────
+// ── Font cache ────────────────────────────────────────────────────────────────
 
-let _fontCache: ArrayBuffer | null = null;
+let _font400: ArrayBuffer | null = null;
+let _font700: ArrayBuffer | null = null;
 
-async function loadFont(): Promise<ArrayBuffer | null> {
-  if (_fontCache) return _fontCache;
-  try {
-    const res = await fetch(
-      "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf",
-    );
-    if (!res.ok) return null;
-    _fontCache = await res.arrayBuffer();
-    return _fontCache;
-  } catch {
-    return null;
-  }
+async function loadFonts(): Promise<[ArrayBuffer | null, ArrayBuffer | null]> {
+  const BASE = "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest";
+  return Promise.all([
+    _font400
+      ? Promise.resolve(_font400)
+      : fetch(`${BASE}/latin-400-normal.ttf`)
+          .then((r) => (r.ok ? r.arrayBuffer() : null))
+          .then((b) => { if (b) _font400 = b; return b; })
+          .catch(() => null),
+    _font700
+      ? Promise.resolve(_font700)
+      : fetch(`${BASE}/latin-700-normal.ttf`)
+          .then((r) => (r.ok ? r.arrayBuffer() : null))
+          .then((b) => { if (b) _font700 = b; return b; })
+          .catch(() => null),
+  ]);
 }
 
 // ── Image helpers ─────────────────────────────────────────────────────────────
 
-async function fetchImageAsBase64(url: string): Promise<string | null> {
+async function toBase64(url: string): Promise<string | null> {
   try {
     if (!url) return null;
     const res = await fetch(url);
     if (!res.ok) return null;
-    const buffer = await res.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
+    const buf  = await res.arrayBuffer();
+    const b64  = Buffer.from(buf).toString("base64");
     const mime = res.headers.get("content-type") || "image/jpeg";
-    return `data:${mime};base64,${base64}`;
+    return `data:${mime};base64,${b64}`;
   } catch {
     return null;
   }
 }
 
 function timeAgo(ts: number): string {
-  const diff = Math.max(0, Date.now() - ts);
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1)  return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  const d = Math.max(0, Date.now() - ts);
+  const m = Math.floor(d / 60000);
+  if (m < 1)  return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 // ── Brand colours ─────────────────────────────────────────────────────────────
@@ -62,10 +67,25 @@ const C = {
   blue:    "#40bcf4",
 } as const;
 
-// ── Card dimensions ───────────────────────────────────────────────────────────
+// ── Fixed card & poster dimensions ────────────────────────────────────────────
+//
+//  Card:   1000 × 340 px
+//  Layout: [UserSection(170)] | [StatsSection(300)] | [PosterSection(flex:1)]
+//
+//  Poster:  105 wide × 158 tall (≈ 2:3 movie poster ratio)
+//  Count:   4 posters  →  4×105 + 3×6(gap) = 438 px  ← fits in ~480px right section
+//
+//  Right section usable width estimate:
+//    1000 – 22(pad) – 170(user) – 300(stats) – 22(pad) – 20(poster-left-gap) = 466 px
+//    438 px < 466 px  ✓
 
-const W = 800;
-const H = 240;
+const W            = 1000;
+const H            = 340;
+const BOTTOM_BAR_H = 26;
+const POSTER_W     = 105;
+const POSTER_H     = 158;    // 105 × 1.5 = 157.5 ≈ 158
+const POSTER_COUNT = 4;
+const POSTER_GAP   = 6;
 
 // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -73,17 +93,18 @@ export async function renderCard(
   stats: LetterboxdStats,
   _params: CardParams,
 ): Promise<Buffer> {
-  // Pre-fetch all images and font in parallel
-  const films = stats.recentFilms.slice(0, 8);
-  const [fontData, avatarData, ...posterData] = await Promise.all([
-    loadFont(),
-    fetchImageAsBase64(stats.avatar),
-    ...films.map((f) => fetchImageAsBase64(f.posterUrl)),
+  const films = stats.recentFilms.slice(0, POSTER_COUNT);
+
+  const [[font400, font700], avatarSrc, ...posterSrcs] = await Promise.all([
+    loadFonts(),
+    toBase64(stats.avatar),
+    ...films.map((f) => toBase64(f.posterUrl)),
   ]);
 
-  const fonts: Parameters<typeof satori>[1]["fonts"] = fontData
-    ? [{ name: "Inter", data: fontData, weight: 400, style: "normal" as const }]
-    : [];
+  const fonts: Parameters<typeof satori>[1]["fonts"] = [
+    ...(font400 ? [{ name: "Inter", data: font400, weight: 400 as const, style: "normal" as const }] : []),
+    ...(font700 ? [{ name: "Inter", data: font700, weight: 700 as const, style: "normal" as const }] : []),
+  ];
 
   const statItems = [
     { label: "FILMS",     value: stats.stats.totalFilms },
@@ -93,93 +114,63 @@ export async function renderCard(
     { label: "FOLLOWERS", value: stats.stats.followers  },
   ];
 
-  const POSTER_H = 160;
-  const POSTER_W = Math.round(POSTER_H * (2 / 3)); // ~107px
-
   const svg = await satori(
-    <div
-      style={{
-        display:       "flex",
-        flexDirection: "column",
-        width:         "100%",
-        height:        "100%",
-        background:    C.bg,
-        fontFamily:    "Inter, sans-serif",
-      }}
-    >
-      {/* ── Main row ── */}
-      <div style={{ display: "flex", flex: 1, padding: "20px 20px 12px 20px" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: C.bg, fontFamily: "Inter, sans-serif" }}>
 
-        {/* Left: User */}
+      {/* ── MAIN ROW ─────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", flex: 1, alignItems: "center", padding: "22px 22px 18px 22px", overflow: "hidden" }}>
+
+        {/* ── USER SECTION (fixed 170px, border-box) ─────────────── */}
         <div
           style={{
             display:        "flex",
             flexDirection:  "column",
             alignItems:     "center",
             justifyContent: "center",
-            width:          150,
-            minWidth:       150,
-            paddingRight:   18,
+            width:           170,
+            minWidth:        170,
+            paddingRight:    20,
             borderRight:    `1px solid ${C.border}`,
           }}
         >
-          {avatarData ? (
-            <img
-              src={avatarData}
-              width={56}
-              height={56}
-              style={{ borderRadius: "50%" }}
-            />
+          {avatarSrc ? (
+            <img src={avatarSrc} width={68} height={68} style={{ borderRadius: "50%" }} />
           ) : (
-            <div
-              style={{
-                display:        "flex",
-                width:          56,
-                height:         56,
-                borderRadius:   "50%",
-                background:     C.surface,
-                alignItems:     "center",
-                justifyContent: "center",
-                fontSize:       22,
-                fontWeight:     700,
-                color:          C.green,
-              }}
-            >
+            <div style={{ display: "flex", width: 68, height: 68, borderRadius: "50%", background: C.surface, alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 700, color: C.green }}>
               {(stats.displayName || stats.username || "?")[0].toUpperCase()}
             </div>
           )}
 
-          <div
-            style={{
-              display:    "flex",
-              marginTop:  8,
-              fontSize:   15,
-              fontWeight: 700,
-              color:      C.text,
-            }}
-          >
+          <div style={{ display: "flex", marginTop: 12, fontSize: 17, fontWeight: 700, color: C.text }}>
             {stats.displayName || stats.username}
           </div>
 
-          {stats.displayName &&
-            stats.displayName.toLowerCase() !== stats.username.toLowerCase() && (
-              <div style={{ display: "flex", marginTop: 2, fontSize: 11, color: C.muted }}>
-                @{stats.username}
-              </div>
-            )}
+          {stats.displayName && stats.displayName.toLowerCase() !== stats.username.toLowerCase() && (
+            <div style={{ display: "flex", marginTop: 3, fontSize: 12, color: C.muted }}>
+              @{stats.username}
+            </div>
+          )}
         </div>
 
-        {/* Middle: Stats */}
+        {/* ── STATS SECTION (fixed 300px, border-box) ────────────── */}
         <div
           style={{
             display:        "flex",
             flexDirection:  "column",
             justifyContent: "center",
-            padding:        "0 18px",
+            width:           300,
+            minWidth:        300,
+            padding:         "0 22px",
             borderRight:    `1px solid ${C.border}`,
           }}
         >
-          <div style={{ display: "flex" }}>
+          {/* Section label */}
+          <div style={{ display: "flex", fontSize: 9, color: C.dim, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 16 }}>
+            All-time stats
+          </div>
+
+          {/* Stat grid */}
+          <div style={{ display: "flex", alignItems: "flex-start" }}>
             {statItems.map((s, i) => (
               <div
                 key={s.label}
@@ -187,23 +178,16 @@ export async function renderCard(
                   display:       "flex",
                   flexDirection: "column",
                   alignItems:    "center",
-                  paddingLeft:   i > 0 ? 14 : 0,
-                  paddingRight:  i < statItems.length - 1 ? 14 : 0,
+                  flex:           1,
                   borderLeft:    i > 0 ? `1px solid ${C.border}` : "none",
+                  paddingLeft:   i > 0 ? 6 : 0,
+                  paddingRight:  i < statItems.length - 1 ? 6 : 0,
                 }}
               >
-                <span style={{ fontSize: 22, fontWeight: 700, color: C.green, lineHeight: 1 }}>
+                <span style={{ fontSize: 23, fontWeight: 700, color: C.green, lineHeight: 1 }}>
                   {s.value.toLocaleString()}
                 </span>
-                <span
-                  style={{
-                    fontSize:      8,
-                    color:         C.dim,
-                    letterSpacing: "0.12em",
-                    marginTop:     6,
-                    textTransform: "uppercase",
-                  }}
-                >
+                <span style={{ fontSize: 7, color: C.dim, letterSpacing: "0.1em", marginTop: 7, textTransform: "uppercase" }}>
                   {s.label}
                 </span>
               </div>
@@ -211,42 +195,45 @@ export async function renderCard(
           </div>
         </div>
 
-        {/* Right: Posters */}
+        {/* ── POSTERS SECTION (flex:1, overflow hidden) ───────────── */}
         <div
           style={{
             display:        "flex",
-            flex:           1,
+            flex:            1,
             alignItems:     "center",
             justifyContent: "flex-end",
-            paddingLeft:    14,
-            gap:            4,
+            paddingLeft:    20,
+            gap:             POSTER_GAP,
+            overflow:       "hidden",
           }}
         >
           {films.map((film, i) => {
-            const src = posterData[i];
+            const src = posterSrcs[i];
             return src ? (
               <img
                 key={film.slug}
                 src={src}
                 width={POSTER_W}
                 height={POSTER_H}
-                style={{ borderRadius: 4 }}
+                style={{ borderRadius: 5, flexShrink: 0 }}
               />
             ) : (
               <div
                 key={film.slug}
                 style={{
                   display:        "flex",
-                  width:          POSTER_W,
-                  height:         POSTER_H,
-                  background:     C.surface,
-                  borderRadius:   4,
-                  alignItems:     "flex-end",
+                  flexShrink:      0,
+                  width:           POSTER_W,
+                  height:          POSTER_H,
+                  background:      C.surface,
+                  borderRadius:    5,
+                  alignItems:     "center",
                   justifyContent: "center",
-                  padding:        6,
-                  fontSize:       8,
-                  color:          C.dim,
+                  padding:         6,
+                  fontSize:        9,
+                  color:           C.dim,
                   overflow:       "hidden",
+                  textAlign:      "center",
                 }}
               >
                 {film.name}
@@ -256,27 +243,28 @@ export async function renderCard(
         </div>
       </div>
 
-      {/* ── Bottom bar ── */}
+      {/* ── BOTTOM BAR ──────────────────────────────────────────────── */}
       <div
         style={{
-          display:         "flex",
-          height:          20,
-          minHeight:       20,
+          display:        "flex",
+          height:          BOTTOM_BAR_H,
+          minHeight:       BOTTOM_BAR_H,
           background:      C.surface,
-          alignItems:      "center",
-          justifyContent:  "space-between",
-          padding:         "0 12px",
+          alignItems:     "center",
+          justifyContent: "space-between",
+          padding:         "0 16px",
+          borderTop:      `1px solid ${C.border}`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div style={{ display: "flex", width: 6, height: 6, borderRadius: "50%", background: C.orange }} />
-          <div style={{ display: "flex", width: 6, height: 6, borderRadius: "50%", background: C.green }} />
-          <div style={{ display: "flex", width: 6, height: 6, borderRadius: "50%", background: C.blue }} />
-          <span style={{ fontSize: 9, color: C.dim, marginLeft: 4 }}>
+          <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.orange }} />
+          <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.green  }} />
+          <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.blue   }} />
+          <span style={{ fontSize: 10, color: C.dim, marginLeft: 5 }}>
             letterboxd-card.vercel.app
           </span>
         </div>
-        <span style={{ fontSize: 9, color: C.dim }}>
+        <span style={{ fontSize: 10, color: C.dim }}>
           Updated {timeAgo(stats.fetchedAt)}
         </span>
       </div>
