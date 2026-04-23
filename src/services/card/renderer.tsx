@@ -111,172 +111,177 @@ export async function renderCard(
     { label: "FOLLOWERS", value: stats.stats.followers  },
   ];
 
-  const svg = await satori(
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: C.bg, fontFamily: "Inter, sans-serif" }}>
+  try {
+    const svg = await satori(
+      <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: C.bg, fontFamily: "Inter, sans-serif" }}>
 
-      {/* ── MAIN ROW ─────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flex: 1, alignItems: "center", padding: "22px 24px 18px 24px", overflow: "hidden" }}>
+        {/* ── MAIN ROW ─────────────────────────────────────────────── */}
+        <div style={{ display: "flex", flex: 1, alignItems: "center", padding: "22px 24px 18px 24px", overflow: "hidden" }}>
 
-        {/* ── USER (170px) ───────────────────────────────────────── */}
-        <div
-          style={{
-            display:        "flex",
-            flexDirection:  "column",
-            alignItems:     "center",
-            justifyContent: "center",
-            width:           170,
-            minWidth:        170,
-            paddingRight:    22,
-            borderRight:    `1px solid ${C.border}`,
-          }}
-        >
-          {avatarSrc ? (
-            <img src={avatarSrc} width={68} height={68} style={{ borderRadius: "50%" }} />
-          ) : (
-            <div style={{ display: "flex", width: 68, height: 68, borderRadius: "50%", background: C.surface, alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 700, color: C.green }}>
-              {(stats.displayName || stats.username || "?")[0].toUpperCase()}
-            </div>
-          )}
-          <div style={{ display: "flex", marginTop: 12, fontSize: 17, fontWeight: 700, color: C.text }}>
-            {stats.displayName || stats.username}
-          </div>
-          {stats.displayName && stats.displayName.toLowerCase() !== stats.username.toLowerCase() && (
-            <div style={{ display: "flex", marginTop: 3, fontSize: 12, color: C.muted }}>
-              @{stats.username}
-            </div>
-          )}
-        </div>
-
-        {/* ── STATS (400px) ──────────────────────────────────────── */}
-        <div
-          style={{
-            display:        "flex",
-            flexDirection:  "column",
-            justifyContent: "center",
-            width:           400,
-            minWidth:        400,
-            padding:         "0 28px",
-            borderRight:    `1px solid ${C.border}`,
-          }}
-        >
-          {/* Section label */}
-          <div style={{ display: "flex", fontSize: 9, color: C.dim, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 18 }}>
-            All-time stats
-          </div>
-
-          {/* Stat columns */}
-          <div style={{ display: "flex", alignItems: "flex-start" }}>
-            {statItems.map((s, i) => (
-              <div
-                key={s.label}
-                style={{
-                  display:       "flex",
-                  flexDirection: "column",
-                  alignItems:    "center",
-                  flex:           1,
-                  borderLeft:    i > 0 ? `1px solid ${C.border}` : "none",
-                  paddingLeft:   i > 0 ? 12 : 0,
-                  paddingRight:  i < statItems.length - 1 ? 12 : 0,
-                }}
-              >
-                <span style={{ fontSize: 24, fontWeight: 700, color: C.green, lineHeight: 1 }}>
-                  {s.value.toLocaleString()}
-                </span>
-                <span style={{ fontSize: 8, color: C.dim, letterSpacing: "0.1em", marginTop: 8, textTransform: "uppercase" }}>
-                  {s.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── POSTERS (flex:1) ───────────────────────────────────── */}
-        <div
-          style={{
-            display:        "flex",
-            flexDirection:  "column",
-            flex:            1,
-            paddingLeft:     24,
-            overflow:       "hidden",
-          }}
-        >
-          {/* Section label */}
-          <div style={{ display: "flex", fontSize: 9, color: C.dim, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 10 }}>
-            Recent watches
-          </div>
-
-          {/* Poster row */}
-          <div style={{ display: "flex", alignItems: "center", gap: POSTER_GAP }}>
-            {films.length > 0 ? (
-              films.map((film, i) => {
-                const src = posterSrcs[i];
-                return src ? (
-                  <img
-                    key={film.slug}
-                    src={src}
-                    width={POSTER_W}
-                    height={POSTER_H}
-                    style={{ borderRadius: 5, flexShrink: 0 }}
-                  />
-                ) : (
-                  <div
-                    key={film.slug}
-                    style={{
-                      display:        "flex",
-                      flexShrink:      0,
-                      width:           POSTER_W,
-                      height:          POSTER_H,
-                      background:      C.surface,
-                      borderRadius:    5,
-                      alignItems:     "center",
-                      justifyContent: "center",
-                      padding:         6,
-                      fontSize:        9,
-                      color:           C.dim,
-                      overflow:       "hidden",
-                    }}
-                  >
-                    {film.name}
-                  </div>
-                );
-              })
+          {/* ── USER (170px) ───────────────────────────────────────── */}
+          <div
+            style={{
+              display:        "flex",
+              flexDirection:  "column",
+              alignItems:     "center",
+              justifyContent: "center",
+              width:           170,
+              minWidth:        170,
+              paddingRight:    22,
+              borderRight:    `1px solid ${C.border}`,
+            }}
+          >
+            {avatarSrc ? (
+              <img src={avatarSrc} width={68} height={68} style={{ borderRadius: "50%" }} />
             ) : (
-              <div style={{ display: "flex", fontSize: 11, color: C.dim }}>
-                No recent activity
+              <div style={{ display: "flex", width: 68, height: 68, borderRadius: "50%", background: C.surface, alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 700, color: C.green }}>
+                {(stats.displayName || stats.username || "?")[0].toUpperCase()}
+              </div>
+            )}
+            <div style={{ display: "flex", marginTop: 12, fontSize: 17, fontWeight: 700, color: C.text }}>
+              {stats.displayName || stats.username}
+            </div>
+            {stats.displayName && stats.displayName.toLowerCase() !== stats.username.toLowerCase() && (
+              <div style={{ display: "flex", marginTop: 3, fontSize: 12, color: C.muted }}>
+                @{stats.username}
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* ── BOTTOM BAR ───────────────────────────────────────────── */}
-      <div
-        style={{
-          display:        "flex",
-          height:          BOTTOM_BAR_H,
-          minHeight:       BOTTOM_BAR_H,
-          background:      C.surface,
-          alignItems:     "center",
-          justifyContent: "space-between",
-          padding:         "0 16px",
-          borderTop:      `1px solid ${C.border}`,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.orange }} />
-          <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.green  }} />
-          <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.blue   }} />
-          <span style={{ fontSize: 10, color: C.dim, marginLeft: 5 }}>
-            letterboxd-card.vercel.app
+          {/* ── STATS (400px) ──────────────────────────────────────── */}
+          <div
+            style={{
+              display:        "flex",
+              flexDirection:  "column",
+              justifyContent: "center",
+              width:           400,
+              minWidth:        400,
+              padding:         "0 28px",
+              borderRight:    `1px solid ${C.border}`,
+            }}
+          >
+            {/* Section label */}
+            <div style={{ display: "flex", fontSize: 9, color: C.dim, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 18 }}>
+              All-time stats
+            </div>
+
+            {/* Stat columns */}
+            <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+              {statItems.flatMap((s, i) => [
+                i > 0 ? (
+                  <div key={`border-${s.label}`} style={{ display: "flex", width: 1, height: 32, background: C.border }} />
+                ) : null,
+                <div
+                  key={s.label}
+                  style={{
+                    display:       "flex",
+                    flexDirection: "column",
+                    alignItems:    "center",
+                    flex:           1,
+                  }}
+                >
+                  <span style={{ fontSize: 24, fontWeight: 700, color: C.green, lineHeight: 1 }}>
+                    {s.value.toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: 8, color: C.dim, letterSpacing: "0.1em", marginTop: 8, textTransform: "uppercase" }}>
+                    {s.label}
+                  </span>
+                </div>
+              ])}
+            </div>
+          </div>
+
+          {/* ── POSTERS (flex:1) ───────────────────────────────────── */}
+          <div
+            style={{
+              display:        "flex",
+              flexDirection:  "column",
+              flex:            1,
+              paddingLeft:     24,
+              overflow:       "hidden",
+            }}
+          >
+            {/* Section label */}
+            <div style={{ display: "flex", fontSize: 9, color: C.dim, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 10 }}>
+              Recent watches
+            </div>
+
+            {/* Poster row */}
+            <div style={{ display: "flex", alignItems: "center", gap: POSTER_GAP }}>
+              {films.length > 0 ? (
+                films.map((film, i) => {
+                  const src = posterSrcs[i];
+                  return src ? (
+                    <img
+                      key={film.slug}
+                      src={src}
+                      width={POSTER_W}
+                      height={POSTER_H}
+                      style={{ borderRadius: 5, flexShrink: 0 }}
+                    />
+                  ) : (
+                    <div
+                      key={film.slug}
+                      style={{
+                        display:        "flex",
+                        flexShrink:      0,
+                        width:           POSTER_W,
+                        height:          POSTER_H,
+                        background:      C.surface,
+                        borderRadius:    5,
+                        alignItems:     "center",
+                        justifyContent: "center",
+                        padding:         6,
+                        fontSize:        9,
+                        color:           C.dim,
+                        overflow:       "hidden",
+                      }}
+                    >
+                      {film.name}
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ display: "flex", fontSize: 11, color: C.dim }}>
+                  No recent activity
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── BOTTOM BAR ───────────────────────────────────────────── */}
+        <div
+          style={{
+            display:        "flex",
+            height:          BOTTOM_BAR_H,
+            minHeight:       BOTTOM_BAR_H,
+            background:      C.surface,
+            alignItems:     "center",
+            justifyContent: "space-between",
+            padding:         "0 16px",
+            borderTop:      `1px solid ${C.border}`,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.orange }} />
+            <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.green  }} />
+            <div style={{ display: "flex", width: 7, height: 7, borderRadius: "50%", background: C.blue   }} />
+            <span style={{ fontSize: 10, color: C.dim, marginLeft: 5 }}>
+              letterboxd-card.vercel.app
+            </span>
+          </div>
+          <span style={{ fontSize: 10, color: C.dim }}>
+            Updated {timeAgo(stats.fetchedAt)}
           </span>
         </div>
-        <span style={{ fontSize: 10, color: C.dim }}>
-          Updated {timeAgo(stats.fetchedAt)}
-        </span>
-      </div>
-    </div>,
-    { width: W, height: H, fonts },
-  );
+      </div>,
+      { width: W, height: H, fonts },
+    );
 
-  return Buffer.from(svg, "utf-8");
+    return Buffer.from(svg, "utf-8");
+  } catch (err) {
+    console.error("Failed to render card with satori:", err);
+    throw err;
+  }
 }

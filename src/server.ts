@@ -14,7 +14,9 @@ const PROD_ORIGINS = [
   "https://letterboxd-card.vercel.app",
 ].filter(Boolean)
 
-app.use(helmet())
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}))
 app.use(cors({
   origin: true, // Reflects the request origin, allowing all origins
   credentials: true,

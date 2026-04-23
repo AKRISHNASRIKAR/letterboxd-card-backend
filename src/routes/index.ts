@@ -6,6 +6,11 @@ import filmsRouter from "./films.route"
 import listsRouter from "./lists.route"
 
 const router = Router()
+
+router.get("/health", (req, res) => {
+  res.json({ ok: true, timestamp: Date.now() })
+})
+
 router.use("/card",  cardRouter)
 router.use("/stats", statsRouter)
 router.use("/films", filmsRouter)

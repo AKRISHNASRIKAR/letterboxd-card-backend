@@ -4,11 +4,11 @@ export const SELECTORS = {
   // display name is the .label inside the h1
   displayName: ".person-display-name .label",
   memberSince: ".profile-metadata dd",
-  totalFilms:  'a[href*="/films/"] .value',
-  thisYear:    'a[href*="/diary/for/"] .value',
-  following:   'a[href*="/following/"] .value',
-  followers:   'a[href*="/followers/"] .value',
-  lists:       'a[href*="/lists/"] .value',
+  totalFilms:  '.profile-stats a[href*="/films/"] .value',
+  thisYear:    '.profile-stats a[href*="/diary/for/"] .value',
+  following:   '.profile-stats a[href*="/following/"] .value',
+  followers:   '.profile-stats a[href*="/followers/"] .value',
+  lists:       '.profile-stats a[href*="/lists/"] .value',
   // avatar is the first img inside .profile-avatar
   avatar:      ".profile-avatar img",
   // recent watches live in #recent-activity (NOT the favorites .poster-grid)
