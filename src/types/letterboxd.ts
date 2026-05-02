@@ -22,19 +22,8 @@ export interface LetterboxdStats {
   fetchedAt:   number
 }
  
-export interface Theme {
-  background: string
-  surface:    string
-  text:       string
-  muted:      string
-  accent:     string
-  filmTile:   string
-  border:     string
-}
- 
 export interface CardParams {
   user:  string
-  theme: string
   width: number
   count: number
 }

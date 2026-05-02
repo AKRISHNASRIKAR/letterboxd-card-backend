@@ -1,7 +1,7 @@
 // src/services/card/renderer.tsx
 import React from "react";
 import satori from "satori";
-import type { LetterboxdStats, CardParams } from "../../types/letterboxd";
+import type { LetterboxdStats } from "../../types/letterboxd";
 
 // ── Font cache ────────────────────────────────────────────────────────────────
 
@@ -31,7 +31,13 @@ async function loadFonts(): Promise<[ArrayBuffer | null, ArrayBuffer | null]> {
 async function toBase64(url: string): Promise<string | null> {
   try {
     if (!url) return null;
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: {
+        "Referer": "https://letterboxd.com",
+        "Accept": "image/webp,image/avif,image/*,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+      },
+    });
     if (!res.ok) return null;
     const buf  = await res.arrayBuffer();
     const b64  = Buffer.from(buf).toString("base64");
@@ -88,9 +94,9 @@ const POSTER_GAP   = 6;
 
 export async function renderCard(
   stats: LetterboxdStats,
-  _params: CardParams,
+  count = 4,
 ): Promise<Buffer> {
-  const films = stats.recentFilms.slice(0, POSTER_COUNT);
+  const films = stats.recentFilms.slice(0, Math.min(count, POSTER_COUNT));
 
   const [[font400, font700], avatarSrc, ...posterSrcs] = await Promise.all([
     loadFonts(),

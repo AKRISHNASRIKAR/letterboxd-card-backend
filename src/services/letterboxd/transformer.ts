@@ -26,9 +26,10 @@ export function transform(raw: Raw): LetterboxdStats {
       name:      f.name,
       rating:    f.rating,
       year:      f.year,
-      posterUrl: f.filmId
-        ? `https://a.ltrbxd.com/resized/film-poster/${filmIdToPath(f.filmId)}-${f.slug}-0-230-0-345-crop.jpg`
-        : "",
+      posterUrl: f.posterImgSrc ||
+        (f.filmId
+          ? `https://a.ltrbxd.com/resized/film-poster/${filmIdToPath(f.filmId)}-${f.slug}-0-230-0-345-crop.jpg`
+          : ""),
     })),
     fetchedAt: Date.now(),
   }

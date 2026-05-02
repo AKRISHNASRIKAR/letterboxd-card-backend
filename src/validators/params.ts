@@ -9,7 +9,6 @@ const username = z
  
 export const cardParamsSchema = z.object({
   user:  username,
-  theme: z.enum(["default","dark","minimal"]).default("default"),
   width: z.coerce.number().min(300).max(800).default(480),
   count: z.coerce.number().min(1).max(8).default(4),
 })

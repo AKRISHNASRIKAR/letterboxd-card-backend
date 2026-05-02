@@ -14,7 +14,10 @@ export function parseProfile(html: string) {
     const slug      = $(el).attr("data-item-slug") ?? ""
     const filmId    = $(el).attr("data-film-id") ?? ""
     const rating    = $(el).closest(".griditem").find(SELECTORS.filmRating).first().text().trim()
-    return { slug, name, rating, year, filmId }
+    // Try to grab the poster URL directly from an img tag before falling back to filmId construction
+    const rawImgSrc = $(el).find("img").first().attr("src") ?? $(el).find("img").first().attr("data-src") ?? ""
+    const posterImgSrc = rawImgSrc.startsWith("//") ? `https:${rawImgSrc}` : rawImgSrc
+    return { slug, name, rating, year, filmId, posterImgSrc }
   }).get()
 
   return {

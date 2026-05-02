@@ -6,8 +6,8 @@ import { getCached, setCached } from "../services/cache.service"
  
 export async function getCard(req: Request, res: Response, next: NextFunction) {
   try {
-    const { user, theme, width, count } = res.locals.params
- 
+    const { user, count } = res.locals.params
+
     const statsKey = `stats:v3:${user}`
     let stats: Awaited<ReturnType<typeof scrapeStats>> | null =
       (await getCached(statsKey)) as Awaited<ReturnType<typeof scrapeStats>> | null
@@ -15,8 +15,8 @@ export async function getCard(req: Request, res: Response, next: NextFunction) {
       stats = await scrapeStats(user)
       await setCached(statsKey, stats, 3600)
     }
- 
-    const svg = await renderCard(stats, { user, theme, width: +width, count: +count })
+
+    const svg = await renderCard(stats, +count)
 
     res.setHeader("Content-Type", "image/svg+xml")
     res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=86400")
