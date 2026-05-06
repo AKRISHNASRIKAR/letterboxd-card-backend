@@ -14,9 +14,23 @@ export function parseProfile(html: string) {
     const slug      = $(el).attr("data-item-slug") ?? ""
     const filmId    = $(el).attr("data-film-id") ?? ""
     const rating    = $(el).closest(".griditem").find(SELECTORS.filmRating).first().text().trim()
-    // Try to grab the poster URL directly from an img tag before falling back to filmId construction
-    const rawImgSrc = $(el).find("img").first().attr("src") ?? $(el).find("img").first().attr("data-src") ?? ""
-    const posterImgSrc = rawImgSrc.startsWith("//") ? `https:${rawImgSrc}` : rawImgSrc
+    // Try to grab the poster URL from img tag (src, data-src, or data-image-url)
+    let rawImgSrc = $(el).find("img").first().attr("src") ?? ""
+    if (!rawImgSrc || rawImgSrc.includes("placeholder")) {
+      rawImgSrc = $(el).find("img").first().attr("data-src") ?? ""
+    }
+    if (!rawImgSrc || rawImgSrc.includes("placeholder")) {
+      rawImgSrc = $(el).find("img").first().attr("data-image-url") ?? ""
+    }
+    // Normalize protocol-relative URLs
+    let posterImgSrc = ""
+    if (rawImgSrc) {
+      posterImgSrc = rawImgSrc.startsWith("//") ? `https:${rawImgSrc}` : rawImgSrc
+    }
+    // Only use constructed URL if img tag URL is missing or invalid
+    if (!posterImgSrc || !posterImgSrc.startsWith("http")) {
+      posterImgSrc = ""
+    }
     return { slug, name, rating, year, filmId, posterImgSrc }
   }).get()
 

@@ -21,16 +21,24 @@ export function transform(raw: Raw): LetterboxdStats {
       followers:  raw.followers,
       lists:      raw.lists,
     },
-    recentFilms: raw.recentFilms.map(f => ({
-      slug:      f.slug,
-      name:      f.name,
-      rating:    f.rating,
-      year:      f.year,
-      posterUrl: f.posterImgSrc ||
-        (f.filmId
-          ? `https://a.ltrbxd.com/resized/film-poster/${filmIdToPath(f.filmId)}-${f.slug}-0-230-0-345-crop.jpg`
-          : ""),
-    })),
+    recentFilms: raw.recentFilms.map(f => {
+      // Prefer constructed URL from filmId if posterImgSrc is missing or invalid
+      let posterUrl = f.posterImgSrc
+      if (!posterUrl || !posterUrl.startsWith("http")) {
+        if (f.filmId) {
+          posterUrl = `https://a.ltrbxd.com/resized/film-poster/${filmIdToPath(f.filmId)}-${f.slug}-0-230-0-345-crop.jpg`
+        } else {
+          posterUrl = ""
+        }
+      }
+      return {
+        slug:      f.slug,
+        name:      f.name,
+        rating:    f.rating,
+        year:      f.year,
+        posterUrl: posterUrl,
+      }
+    }),
     fetchedAt: Date.now(),
   }
 }
