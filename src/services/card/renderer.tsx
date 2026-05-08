@@ -3,6 +3,14 @@ import React from "react";
 import satori from "satori";
 import type { LetterboxdStats } from "../../types/letterboxd";
 
+// Allow satori's `tw` prop on all HTML elements
+declare module "react" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface HTMLAttributes<T> {
+    tw?: string
+  }
+}
+
 // ── Font cache ────────────────────────────────────────────────────────────────
 
 let _font400: ArrayBuffer | null = null;
@@ -165,159 +173,68 @@ export async function renderCard(
   try {
     const svg = await satori(
       <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          background: C.bg,
-          fontFamily: "Inter, sans-serif",
-        }}
+        tw="flex flex-col w-full h-full"
+        style={{ background: C.bg, fontFamily: "Inter, sans-serif" }}
       >
         {/* ── MAIN ROW ─────────────────────────────────────────────── */}
         <div
-          style={{
-            display: "flex",
-            flex: 1,
-            alignItems: "center",
-            padding: "22px 24px 18px 24px",
-            overflow: "hidden",
-          }}
+          tw="flex flex-1 items-center overflow-hidden"
+          style={{ padding: "22px 24px 18px 24px" }}
         >
           {/* ── USER (170px) ───────────────────────────────────────── */}
           <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 170,
-              minWidth: 170,
-              paddingRight: 22,
-              borderRight: `1px solid ${C.border}`,
-            }}
+            tw="flex flex-col items-center justify-center"
+            style={{ width: 170, minWidth: 170, paddingRight: 22, borderRight: `1px solid ${C.border}` }}
           >
             {avatarSrc ? (
-              <img
-                src={avatarSrc}
-                width={68}
-                height={68}
-                style={{ borderRadius: "50%" }}
-              />
+              <img src={avatarSrc} width={68} height={68} style={{ borderRadius: "50%" }} />
             ) : (
               <div
-                style={{
-                  display: "flex",
-                  width: 68,
-                  height: 68,
-                  borderRadius: "50%",
-                  background: C.surface,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 26,
-                  fontWeight: 700,
-                  color: C.green,
-                }}
+                tw="flex items-center justify-center"
+                style={{ width: 68, height: 68, borderRadius: "50%", background: C.surface, fontSize: 26, fontWeight: 700, color: C.green }}
               >
                 {(stats.displayName || stats.username || "?")[0].toUpperCase()}
               </div>
             )}
             <div
-              style={{
-                display: "flex",
-                marginTop: 12,
-                fontSize: 17,
-                fontWeight: 700,
-                color: C.text,
-              }}
+              tw="flex"
+              style={{ marginTop: 12, fontSize: 17, fontWeight: 700, color: C.text }}
             >
               {stats.displayName || stats.username}
             </div>
-            {stats.displayName &&
-              stats.displayName.toLowerCase() !==
-                stats.username.toLowerCase() && (
-                <div
-                  style={{
-                    display: "flex",
-                    marginTop: 3,
-                    fontSize: 12,
-                    color: C.muted,
-                  }}
-                >
-                  @{stats.username}
-                </div>
-              )}
+            {stats.displayName && stats.displayName.toLowerCase() !== stats.username.toLowerCase() && (
+              <div tw="flex" style={{ marginTop: 3, fontSize: 12, color: C.muted }}>
+                @{stats.username}
+              </div>
+            )}
           </div>
 
           {/* ── STATS (400px) ──────────────────────────────────────── */}
           <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              width: 400,
-              minWidth: 400,
-              padding: "0 28px",
-              borderRight: `1px solid ${C.border}`,
-            }}
+            tw="flex flex-col justify-center"
+            style={{ width: 400, minWidth: 400, padding: "0 28px", borderRight: `1px solid ${C.border}` }}
           >
             {/* Section label */}
             <div
-              style={{
-                display: "flex",
-                fontSize: 9,
-                color: C.dim,
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                marginBottom: 18,
-              }}
+              tw="flex uppercase"
+              style={{ fontSize: 9, color: C.dim, letterSpacing: "0.15em", marginBottom: 18 }}
             >
               All-time stats
             </div>
 
             {/* Stat columns */}
-            <div
-              style={{ display: "flex", alignItems: "center", width: "100%" }}
-            >
+            <div tw="flex items-center w-full">
               {statItems.flatMap((s, i) => [
                 i > 0 ? (
-                  <div
-                    key={`border-${s.label}`}
-                    style={{
-                      display: "flex",
-                      width: 1,
-                      height: 32,
-                      background: C.border,
-                    }}
-                  />
+                  <div key={`border-${s.label}`} tw="flex" style={{ width: 1, height: 32, background: C.border }} />
                 ) : null,
-                <div
-                  key={s.label}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    flex: 1,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 24,
-                      fontWeight: 700,
-                      color: C.green,
-                      lineHeight: 1,
-                    }}
-                  >
+                <div key={s.label} tw="flex flex-col items-center flex-1">
+                  <span style={{ fontSize: 24, fontWeight: 700, color: C.green, lineHeight: 1 }}>
                     {s.value.toLocaleString()}
                   </span>
                   <span
-                    style={{
-                      fontSize: 8,
-                      color: C.dim,
-                      letterSpacing: "0.1em",
-                      marginTop: 8,
-                      textTransform: "uppercase",
-                    }}
+                    tw="uppercase"
+                    style={{ fontSize: 8, color: C.dim, letterSpacing: "0.1em", marginTop: 8 }}
                   >
                     {s.label}
                   </span>
@@ -327,33 +244,17 @@ export async function renderCard(
           </div>
 
           {/* ── POSTERS (flex:1) ───────────────────────────────────── */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              flex: 1,
-              paddingLeft: 24,
-              overflow: "hidden",
-            }}
-          >
+          <div tw="flex flex-col flex-1 overflow-hidden" style={{ paddingLeft: 24 }}>
             {/* Section label */}
             <div
-              style={{
-                display: "flex",
-                fontSize: 9,
-                color: C.dim,
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                marginBottom: 10,
-              }}
+              tw="flex uppercase"
+              style={{ fontSize: 9, color: C.dim, letterSpacing: "0.15em", marginBottom: 10 }}
             >
               Recent watches
             </div>
 
             {/* Poster row */}
-            <div
-              style={{ display: "flex", alignItems: "center", gap: POSTER_GAP }}
-            >
+            <div tw="flex items-center" style={{ gap: POSTER_GAP }}>
               {films.length > 0 ? (
                 films.map((film, i) => {
                   const src = posterSrcs[i];
@@ -368,29 +269,15 @@ export async function renderCard(
                   ) : (
                     <div
                       key={film.slug}
-                      style={{
-                        display: "flex",
-                        flexShrink: 0,
-                        width: POSTER_W,
-                        height: POSTER_H,
-                        background: C.surface,
-                        borderRadius: 5,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 6,
-                        fontSize: 9,
-                        color: C.dim,
-                        overflow: "hidden",
-                      }}
+                      tw="flex items-center justify-center"
+                      style={{ flexShrink: 0, width: POSTER_W, height: POSTER_H, background: C.surface, borderRadius: 5, padding: 6, fontSize: 9, color: C.dim, overflow: "hidden" }}
                     >
                       {film.name}
                     </div>
                   );
                 })
               ) : (
-                <div style={{ display: "flex", fontSize: 11, color: C.dim }}>
-                  No recent activity
-                </div>
+                <div tw="flex" style={{ fontSize: 11, color: C.dim }}>No recent activity</div>
               )}
             </div>
           </div>
@@ -398,52 +285,16 @@ export async function renderCard(
 
         {/* ── BOTTOM BAR ───────────────────────────────────────────── */}
         <div
-          style={{
-            display: "flex",
-            height: BOTTOM_BAR_H,
-            minHeight: BOTTOM_BAR_H,
-            background: C.surface,
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 16px",
-            borderTop: `1px solid ${C.border}`,
-          }}
+          tw="flex items-center justify-between"
+          style={{ height: BOTTOM_BAR_H, minHeight: BOTTOM_BAR_H, background: C.surface, padding: "0 16px", borderTop: `1px solid ${C.border}` }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div
-              style={{
-                display: "flex",
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: C.orange,
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: C.green,
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: C.blue,
-              }}
-            />
-            <span style={{ fontSize: 10, color: C.dim, marginLeft: 5 }}>
-              letterboxd-card.vercel.app
-            </span>
+          <div tw="flex items-center" style={{ gap: 5 }}>
+            <div tw="flex" style={{ width: 7, height: 7, borderRadius: "50%", background: C.orange }} />
+            <div tw="flex" style={{ width: 7, height: 7, borderRadius: "50%", background: C.green }} />
+            <div tw="flex" style={{ width: 7, height: 7, borderRadius: "50%", background: C.blue }} />
+            <span style={{ fontSize: 10, color: C.dim, marginLeft: 5 }}>letterboxd-card.vercel.app</span>
           </div>
-          <span style={{ fontSize: 10, color: C.dim }}>
-            Updated {timeAgo(stats.fetchedAt)}
-          </span>
+          <span style={{ fontSize: 10, color: C.dim }}>Updated {timeAgo(stats.fetchedAt)}</span>
         </div>
       </div>,
       { width: W, height: H, fonts },
