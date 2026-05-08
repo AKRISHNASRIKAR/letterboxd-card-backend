@@ -8,21 +8,27 @@ import routes from "./routes"
 
 const app = express()
 
-// Production origins — strip any trailing slash from env var
-const PROD_ORIGINS = [
-  (process.env.FRONTEND_URL ?? "").replace(/\/+$/, ""),
-  "https://letterboxd-card.vercel.app",
-].filter(Boolean)
+// Trust Vercel's proxy so X-Forwarded-For is used for rate limiting
+app.set("trust proxy", 1)
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }))
 app.use(cors({
-  origin: true, // Reflects the request origin, allowing all origins
+  origin: true,
   credentials: true,
 }))
 app.use(express.json())
 app.use(rateLimitMiddleware)
+
+app.get("/", (_req, res) => {
+  res.json({
+    name: "letterboxd-card-backend",
+    status: "ok",
+    endpoints: ["/api/stats", "/api/card", "/api/films", "/api/lists", "/api/health"],
+  })
+})
+
 app.use("/api", routes)
 app.use(errorHandler)
 

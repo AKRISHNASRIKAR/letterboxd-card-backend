@@ -8,28 +8,32 @@ import type { LetterboxdStats } from "../../types/letterboxd";
 let _font400: ArrayBuffer | null = null;
 let _font700: ArrayBuffer | null = null;
 
+const FONT_SOURCES = [
+  "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest",
+  "https://fonts.gstatic.com/s/inter/v13",
+]
+
+async function fetchFontBuf(filename: string): Promise<ArrayBuffer | null> {
+  for (const base of FONT_SOURCES) {
+    try {
+      const r = await fetch(`${base}/${filename}`, { signal: AbortSignal.timeout(6000) })
+      if (r.ok) return r.arrayBuffer()
+    } catch {
+      // try next source
+    }
+  }
+  return null
+}
+
 async function loadFonts(): Promise<[ArrayBuffer | null, ArrayBuffer | null]> {
-  const BASE = "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest";
   return Promise.all([
     _font400
       ? Promise.resolve(_font400)
-      : fetch(`${BASE}/latin-400-normal.ttf`)
-          .then((r) => (r.ok ? r.arrayBuffer() : null))
-          .then((b) => {
-            if (b) _font400 = b;
-            return b;
-          })
-          .catch(() => null),
+      : fetchFontBuf("latin-400-normal.ttf").then((b) => { if (b) _font400 = b; return b }),
     _font700
       ? Promise.resolve(_font700)
-      : fetch(`${BASE}/latin-700-normal.ttf`)
-          .then((r) => (r.ok ? r.arrayBuffer() : null))
-          .then((b) => {
-            if (b) _font700 = b;
-            return b;
-          })
-          .catch(() => null),
-  ]);
+      : fetchFontBuf("latin-700-normal.ttf").then((b) => { if (b) _font700 = b; return b }),
+  ])
 }
 
 // ── Image helpers ─────────────────────────────────────────────────────────────
@@ -46,11 +50,9 @@ async function toBase64(url: string): Promise<string | null> {
 
     const ua =
       IMAGE_USER_AGENTS[Math.floor(Math.random() * IMAGE_USER_AGENTS.length)];
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
     const res = await fetch(url, {
-      signal: controller.signal,
+      signal: AbortSignal.timeout(8000),
       headers: {
         Referer: "https://letterboxd.com/",
         Accept: "image/webp,image/avif,image/*,*/*;q=0.8",
@@ -60,15 +62,29 @@ async function toBase64(url: string): Promise<string | null> {
       },
     });
 
-    clearTimeout(timeout);
-
     if (!res.ok) return null;
+
+    // Strip content-type parameters (e.g. "; charset=utf-8") — satori needs a bare MIME type
+    const rawMime = res.headers.get("content-type") || "image/jpeg"
+    const mime = rawMime.split(";")[0].trim()
+    if (!mime.startsWith("image/")) return null
+
     const buf = await res.arrayBuffer();
+    // Images under 200 bytes are degenerate placeholders (e.g. 42-byte VP8L WebP
+    // from Letterboxd empty-poster) that crash satori's internal image decoder.
+    if (buf.byteLength < 200) return null
+
+    // Reject VP8L (lossless) WebP — satori's wasm decoder handles only lossy VP8/VP8X.
+    if (mime === "image/webp") {
+      const h = new Uint8Array(buf)
+      if (h.length >= 16 && h[12] === 0x56 && h[13] === 0x50 && h[14] === 0x38 && h[15] === 0x4c) {
+        return null // VP8L
+      }
+    }
+
     const b64 = Buffer.from(buf).toString("base64");
-    const mime = res.headers.get("content-type") || "image/jpeg";
     return `data:${mime};base64,${b64}`;
-  } catch (err) {
-    // Silently return null on any error (timeout, network, etc.)
+  } catch {
     return null;
   }
 }
@@ -130,27 +146,13 @@ export async function renderCard(
   ]);
 
   const fonts: Parameters<typeof satori>[1]["fonts"] = [
-    ...(font400
-      ? [
-          {
-            name: "Inter",
-            data: font400,
-            weight: 400 as const,
-            style: "normal" as const,
-          },
-        ]
-      : []),
-    ...(font700
-      ? [
-          {
-            name: "Inter",
-            data: font700,
-            weight: 700 as const,
-            style: "normal" as const,
-          },
-        ]
-      : []),
-  ];
+    ...(font400 ? [{ name: "Inter", data: font400, weight: 400 as const, style: "normal" as const }] : []),
+    ...(font700 ? [{ name: "Inter", data: font700, weight: 700 as const, style: "normal" as const }] : []),
+  ]
+
+  if (fonts.length === 0) {
+    throw new Error("Font loading failed: could not fetch Inter from any CDN source")
+  }
 
   const statItems = [
     { label: "FILMS", value: stats.stats.totalFilms },
@@ -320,7 +322,7 @@ export async function renderCard(
                     {s.label}
                   </span>
                 </div>,
-              ])}
+              ]).filter(Boolean)}
             </div>
           </div>
 
