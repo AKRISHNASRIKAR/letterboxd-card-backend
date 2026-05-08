@@ -22,21 +22,20 @@ export function transform(raw: Raw): LetterboxdStats {
       lists:      raw.lists,
     },
     recentFilms: raw.recentFilms.map(f => {
-      // Prefer constructed URL from filmId if posterImgSrc is missing or invalid
-      let posterUrl = f.posterImgSrc
-      if (!posterUrl || !posterUrl.startsWith("http")) {
-        if (f.filmId) {
-          posterUrl = `https://a.ltrbxd.com/resized/film-poster/${filmIdToPath(f.filmId)}-${f.slug}-0-230-0-345-crop.jpg`
-        } else {
-          posterUrl = ""
-        }
+      // filmId → construct real CDN poster URL (preferred path)
+      // posterImgSrc → direct img src scraped from HTML (fallback, rare)
+      let posterUrl = ""
+      if (f.filmId) {
+        posterUrl = `https://a.ltrbxd.com/resized/film-poster/${filmIdToPath(f.filmId)}-${f.slug}-0-230-0-345-crop.jpg`
+      } else if (f.posterImgSrc && f.posterImgSrc.startsWith("http")) {
+        posterUrl = f.posterImgSrc
       }
       return {
         slug:      f.slug,
         name:      f.name,
         rating:    f.rating,
         year:      f.year,
-        posterUrl: posterUrl,
+        posterUrl,
       }
     }),
     fetchedAt: Date.now(),
