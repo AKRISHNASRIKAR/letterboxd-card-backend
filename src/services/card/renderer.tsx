@@ -181,7 +181,7 @@ const POSTER_COUNT = 4;
 const POSTER_GAP = 6;
 
 // Stats section constants
-const STATS_W = 430; // wider to accommodate 4-digit values like 2,487
+const STATS_W = 415; // balanced width to leave clean space for 4 posters without clipping
 
 // Full stat labels
 const STAT_LABELS: Record<string, string> = {
@@ -265,17 +265,17 @@ export async function renderCard(
           {/* ── STATS (430px) ──────────────────────────────────────── */}
           <div
             tw="flex flex-col justify-center"
-            style={{ width: STATS_W, minWidth: STATS_W, padding: "0 23px", borderRight: `1px solid ${C.border}` }}
+            style={{ width: STATS_W, minWidth: STATS_W, borderRight: `1px solid ${C.border}` }}
           >
             {/* Section label */}
             <div
               tw="flex uppercase"
-              style={{ fontSize: 9, color: C.dim, letterSpacing: "0.15em", marginBottom: 18 }}
+              style={{ fontSize: 9, color: C.dim, letterSpacing: "0.15em", marginBottom: 18, paddingLeft: 24 }}
             >
               All-time stats
             </div>
 
-            {/* Stat columns — fixed 76px column widths ensure even spacing and alignment across all digits and labels. */}
+            {/* Stat columns — fixed 82.2px column widths ensure even spacing and alignment across all digits and labels. */}
             <div tw="flex items-center justify-between w-full">
               {statItems.flatMap((s, i) => [
                 i > 0 ? (
@@ -288,11 +288,11 @@ export async function renderCard(
                 <div
                   key={s.label}
                   tw="flex flex-col items-center justify-center"
-                  style={{ width: 76, minWidth: 76, overflow: "hidden" }}
+                  style={{ width: 82.2, minWidth: 82.2, overflow: "hidden" }}
                 >
                   <span
                     style={{
-                      fontSize:   s.value >= 10000 ? 18 : 22,
+                      fontSize:   s.value >= 100000 ? 18 : 22,
                       fontWeight: 700,
                       color:      C.green,
                       lineHeight: 1,
