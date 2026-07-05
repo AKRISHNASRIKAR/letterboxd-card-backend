@@ -97,6 +97,47 @@ async function toBase64(url: string): Promise<string | null> {
   }
 }
 
+// ── TMDB poster fallback ──────────────────────────────────────────────────────
+// Used when the Letterboxd CDN returns 403 (hotlink protection) for a film poster.
+// Requires TMDB_API_KEY env variable. Gracefully degrades (returns null) if unset.
+
+const TMDB_API_KEY = process.env.TMDB_API_KEY ?? ""
+
+async function fetchTmdbPoster(name: string, year: string): Promise<string | null> {
+  if (!TMDB_API_KEY || !name) return null
+  try {
+    const query = encodeURIComponent(name)
+    const yearParam = year ? `&primary_release_year=${year}` : ""
+    const searchUrl = `https://api.themoviedb.org/3/search/movie?query=${query}${yearParam}&language=en-US&page=1`
+
+    const res = await fetch(searchUrl, {
+      signal: AbortSignal.timeout(6000),
+      headers: {
+        Authorization: `Bearer ${TMDB_API_KEY}`,
+        Accept: "application/json",
+      },
+    })
+    if (!res.ok) return null
+
+    const json = await res.json() as { results?: Array<{ poster_path?: string | null }> }
+    const posterPath = json.results?.[0]?.poster_path
+    if (!posterPath) return null
+
+    // w342 is a good balance of quality vs. size for the 105×158px slot
+    const imgUrl = `https://image.tmdb.org/t/p/w342${posterPath}`
+    return toBase64(imgUrl)
+  } catch {
+    return null
+  }
+}
+
+// Resolves a poster for one film: tries Letterboxd CDN first, falls back to TMDB.
+async function resolvePoster(posterUrl: string, name: string, year: string): Promise<string | null> {
+  const lbResult = await toBase64(posterUrl)
+  if (lbResult) return lbResult
+  return fetchTmdbPoster(name, year)
+}
+
 function timeAgo(ts: number): string {
   const d = Math.max(0, Date.now() - ts);
   const m = Math.floor(d / 60000);
@@ -124,10 +165,10 @@ const C = {
 // ── Layout ────────────────────────────────────────────────────────────────────
 //
 //  1100 × 340 card
-//  ┌──────────┬─────────────────────┬──────────────────────┐
-//  │  USER    │    ALL-TIME STATS   │   RECENT WATCHES     │
-//  │  170px   │      400px          │   flex:1 (~480px)    │
-//  ├──────────┴─────────────────────┴──────────────────────┤
+//  ┌──────────┬──────────────────────┬─────────────────────┐
+//  │  USER    │    ALL-TIME STATS    │   RECENT WATCHES    │
+//  │  170px   │      430px           │   flex:1 (~450px)   │
+//  ├──────────┴──────────────────────┴─────────────────────┤
 //  │  ● ● ●  letterboxd-card.vercel.app    Updated 4m ago  │
 //  └───────────────────────────────────────────────────────┘
 
@@ -138,6 +179,18 @@ const POSTER_W = 105;
 const POSTER_H = 158;
 const POSTER_COUNT = 4;
 const POSTER_GAP = 6;
+
+// Stats section constants
+const STATS_W = 430; // wider to accommodate 4-digit values like 2,487
+
+// Short labels that fit within the stats column without overflowing
+const STAT_LABELS: Record<string, string> = {
+  FILMS:     "FILMS",
+  THIS_YEAR: "THIS YR",
+  LISTS:     "LISTS",
+  FOLLOWING: "FLLWNG",
+  FOLLOWERS: "FLLWRS",
+}
 
 // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -150,7 +203,7 @@ export async function renderCard(
   const [[font400, font700], avatarSrc, ...posterSrcs] = await Promise.all([
     loadFonts(),
     toBase64(stats.avatar),
-    ...films.map((f) => toBase64(f.posterUrl)),
+    ...films.map((f) => resolvePoster(f.posterUrl, f.name, f.year)),
   ]);
 
   const fonts: Parameters<typeof satori>[1]["fonts"] = [
@@ -163,11 +216,11 @@ export async function renderCard(
   }
 
   const statItems = [
-    { label: "FILMS", value: stats.stats.totalFilms },
-    { label: "THIS YEAR", value: stats.stats.thisYear },
-    { label: "LISTS", value: stats.stats.lists },
-    { label: "FOLLOWING", value: stats.stats.following },
-    { label: "FOLLOWERS", value: stats.stats.followers },
+    { label: STAT_LABELS.FILMS,     value: stats.stats.totalFilms },
+    { label: STAT_LABELS.THIS_YEAR, value: stats.stats.thisYear   },
+    { label: STAT_LABELS.LISTS,     value: stats.stats.lists      },
+    { label: STAT_LABELS.FOLLOWING, value: stats.stats.following  },
+    { label: STAT_LABELS.FOLLOWERS, value: stats.stats.followers  },
   ];
 
   try {
@@ -209,10 +262,10 @@ export async function renderCard(
             )}
           </div>
 
-          {/* ── STATS (400px) ──────────────────────────────────────── */}
+          {/* ── STATS (430px) ──────────────────────────────────────── */}
           <div
             tw="flex flex-col justify-center"
-            style={{ width: 400, minWidth: 400, padding: "0 28px", borderRight: `1px solid ${C.border}` }}
+            style={{ width: STATS_W, minWidth: STATS_W, padding: "0 24px", borderRight: `1px solid ${C.border}` }}
           >
             {/* Section label */}
             <div
@@ -222,19 +275,41 @@ export async function renderCard(
               All-time stats
             </div>
 
-            {/* Stat columns */}
+            {/* Stat columns — each cell is flex-1 so they share space equally.
+                Font size scales down for 4+ digit values to prevent overflow. */}
             <div tw="flex items-center w-full">
               {statItems.flatMap((s, i) => [
                 i > 0 ? (
-                  <div key={`border-${s.label}`} tw="flex" style={{ width: 1, height: 32, background: C.border }} />
+                  <div
+                    key={`sep-${s.label}`}
+                    tw="flex"
+                    style={{ width: 1, height: 30, background: C.border, flexShrink: 0 }}
+                  />
                 ) : null,
-                <div key={s.label} tw="flex flex-col items-center flex-1">
-                  <span style={{ fontSize: 24, fontWeight: 700, color: C.green, lineHeight: 1 }}>
+                <div
+                  key={s.label}
+                  tw="flex flex-col items-center justify-center flex-1"
+                  style={{ minWidth: 0, overflow: "hidden" }}
+                >
+                  <span
+                    style={{
+                      fontSize:   s.value >= 1000 ? 20 : 24,
+                      fontWeight: 700,
+                      color:      C.green,
+                      lineHeight: 1,
+                    }}
+                  >
                     {s.value.toLocaleString()}
                   </span>
                   <span
                     tw="uppercase"
-                    style={{ fontSize: 8, color: C.dim, letterSpacing: "0.1em", marginTop: 8 }}
+                    style={{
+                      fontSize:      7,
+                      color:         C.dim,
+                      letterSpacing: "0.08em",
+                      marginTop:     7,
+                      textAlign:     "center",
+                    }}
                   >
                     {s.label}
                   </span>
