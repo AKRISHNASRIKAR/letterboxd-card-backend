@@ -183,13 +183,13 @@ const POSTER_GAP = 6;
 // Stats section constants
 const STATS_W = 430; // wider to accommodate 4-digit values like 2,487
 
-// Short labels that fit within the stats column without overflowing
+// Full labels; long ones will be split into multiple lines to fit
 const STAT_LABELS: Record<string, string> = {
   FILMS:     "FILMS",
-  THIS_YEAR: "THIS YR",
+  THIS_YEAR: "THIS YEAR",
   LISTS:     "LISTS",
-  FOLLOWING: "FLLWNG",
-  FOLLOWERS: "FLLWRS",
+  FOLLOWING: "FOLLOWING",
+  FOLLOWERS: "FOLLOWERS",
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -301,18 +301,21 @@ export async function renderCard(
                   >
                     {s.value.toLocaleString()}
                   </span>
-                  <span
-                    tw="uppercase"
+                  <div
+                    tw="flex flex-col items-center uppercase"
                     style={{
                       fontSize:      7,
                       color:         C.dim,
                       letterSpacing: "0.08em",
                       marginTop:     7,
                       textAlign:     "center",
+                      lineHeight:    1.2,
                     }}
                   >
-                    {s.label}
-                  </span>
+                    {s.label.split(" ").map((word, idx) => (
+                      <div key={idx} tw="flex">{word}</div>
+                    ))}
+                  </div>
                 </div>,
               ]).filter(Boolean)}
             </div>
