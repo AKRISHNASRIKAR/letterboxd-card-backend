@@ -108,19 +108,42 @@ async function fetchTmdbPoster(name: string, year: string): Promise<string | nul
   try {
     const query = encodeURIComponent(name)
     const yearParam = year ? `&primary_release_year=${year}` : ""
-    const searchUrl = `https://api.themoviedb.org/3/search/movie?query=${query}${yearParam}&language=en-US&page=1`
 
-    const res = await fetch(searchUrl, {
-      signal: AbortSignal.timeout(6000),
-      headers: {
-        Authorization: `Bearer ${TMDB_API_KEY}`,
-        Accept: "application/json",
-      },
-    })
+    // Support both TMDB v3 API Key (hex query param) and v4 Read Access Token (Bearer header)
+    const isJwt = TMDB_API_KEY.startsWith("eyJ") || TMDB_API_KEY.length > 50
+    const apiKeyParam = !isJwt ? `&api_key=${TMDB_API_KEY}` : ""
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      ...(isJwt ? { Authorization: `Bearer ${TMDB_API_KEY}` } : {}),
+    }
+
+    const searchUrl = `https://api.themoviedb.org/3/search/movie?query=${query}${yearParam}${apiKeyParam}&language=en-US&page=1`
+    const res = await fetch(searchUrl, { signal: AbortSignal.timeout(6000), headers })
     if (!res.ok) return null
 
     const json = await res.json() as { results?: Array<{ poster_path?: string | null }> }
-    const posterPath = json.results?.[0]?.poster_path
+    let posterPath = json.results?.[0]?.poster_path
+
+    // Fallback 1: Search without release year (handles festival vs. wide release year mismatches between LB and TMDB)
+    if (!posterPath && year) {
+      const fallbackUrl = `https://api.themoviedb.org/3/search/movie?query=${query}${apiKeyParam}&language=en-US&page=1`
+      const fallbackRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(6000), headers })
+      if (fallbackRes.ok) {
+        const fallbackJson = await fallbackRes.json() as { results?: Array<{ poster_path?: string | null }> }
+        posterPath = fallbackJson.results?.[0]?.poster_path
+      }
+    }
+
+    // Fallback 2: Search multi-catalog (handles TV shows / miniseries logged on Letterboxd)
+    if (!posterPath) {
+      const multiUrl = `https://api.themoviedb.org/3/search/multi?query=${query}${apiKeyParam}&language=en-US&page=1`
+      const multiRes = await fetch(multiUrl, { signal: AbortSignal.timeout(6000), headers })
+      if (multiRes.ok) {
+        const multiJson = await multiRes.json() as { results?: Array<{ poster_path?: string | null }> }
+        posterPath = multiJson.results?.find(r => r.poster_path)?.poster_path
+      }
+    }
+
     if (!posterPath) return null
 
     // w342 is a good balance of quality vs. size for the 105×158px slot
