@@ -183,7 +183,7 @@ const POSTER_GAP = 6;
 // Stats section constants
 const STATS_W = 430; // wider to accommodate 4-digit values like 2,487
 
-// Full labels; long ones will be split into multiple lines to fit
+// Full stat labels
 const STAT_LABELS: Record<string, string> = {
   FILMS:     "FILMS",
   THIS_YEAR: "THIS YEAR",
@@ -265,7 +265,7 @@ export async function renderCard(
           {/* ── STATS (430px) ──────────────────────────────────────── */}
           <div
             tw="flex flex-col justify-center"
-            style={{ width: STATS_W, minWidth: STATS_W, padding: "0 24px", borderRight: `1px solid ${C.border}` }}
+            style={{ width: STATS_W, minWidth: STATS_W, padding: "0 23px", borderRight: `1px solid ${C.border}` }}
           >
             {/* Section label */}
             <div
@@ -275,9 +275,8 @@ export async function renderCard(
               All-time stats
             </div>
 
-            {/* Stat columns — each cell is flex-1 so they share space equally.
-                Font size scales down for 4+ digit values to prevent overflow. */}
-            <div tw="flex items-center w-full">
+            {/* Stat columns — fixed 76px column widths ensure even spacing and alignment across all digits and labels. */}
+            <div tw="flex items-center justify-between w-full">
               {statItems.flatMap((s, i) => [
                 i > 0 ? (
                   <div
@@ -288,12 +287,12 @@ export async function renderCard(
                 ) : null,
                 <div
                   key={s.label}
-                  tw="flex flex-col items-center justify-center flex-1"
-                  style={{ minWidth: 0, overflow: "hidden" }}
+                  tw="flex flex-col items-center justify-center"
+                  style={{ width: 76, minWidth: 76, overflow: "hidden" }}
                 >
                   <span
                     style={{
-                      fontSize:   s.value >= 1000 ? 20 : 24,
+                      fontSize:   s.value >= 10000 ? 18 : 22,
                       fontWeight: 700,
                       color:      C.green,
                       lineHeight: 1,
@@ -301,21 +300,20 @@ export async function renderCard(
                   >
                     {s.value.toLocaleString()}
                   </span>
-                  <div
-                    tw="flex flex-col items-center uppercase"
+                  <span
+                    tw="uppercase"
                     style={{
-                      fontSize:      7,
+                      fontSize:      7.5,
                       color:         C.dim,
-                      letterSpacing: "0.08em",
-                      marginTop:     7,
+                      letterSpacing: "0.05em",
+                      marginTop:     8,
                       textAlign:     "center",
-                      lineHeight:    1.2,
+                      lineHeight:    1,
+                      whiteSpace:    "nowrap",
                     }}
                   >
-                    {s.label.split(" ").map((word, idx) => (
-                      <div key={idx} tw="flex">{word}</div>
-                    ))}
-                  </div>
+                    {s.label}
+                  </span>
                 </div>,
               ]).filter(Boolean)}
             </div>
