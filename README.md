@@ -12,6 +12,7 @@
   <a href="https://letterboxd-card.vercel.app">Live Demo</a> &middot;
   <a href="#api-reference">API Docs</a> &middot;
   <a href="#self-hosting">Self-Host</a> &middot;
+  <a href="#documentation">Architecture Docs</a> &middot;
   <a href="https://github.com/AKRISHNASRIKAR/letterboxd-card-backend/issues">Report Bug</a>
 </p>
 
@@ -172,6 +173,7 @@ Browser / README
 - **[Cheerio](https://cheerio.js.org/)** — HTML parsing (scrapes Letterboxd profile pages)
 - **[Satori](https://github.com/vercel/satori)** — Converts React JSX to SVG (no browser needed)
 - **[Upstash Redis](https://upstash.com/)** — Serverless caching (1-hour TTL)
+- **[TMDB API](https://developer.themoviedb.org/docs)** — Used to fetch high-resolution posters as a fallback for missing or low-quality Letterboxd images.
 - **[Zod](https://zod.dev/)** — Request validation
 - **[Vercel](https://vercel.com/)** — Hosting (serverless functions)
 
@@ -236,6 +238,16 @@ lb-card-be/
 
 ---
 
+## Documentation
+
+For a deeper dive into the system design, check out the documentation:
+
+- **[Architecture Overview](docs/overview.md)** — High-level design, scaling considerations, and API architecture.
+- **[Workflow Flowchart](docs/flowchart/workflow.md)** — Visual representation of the request lifecycle and data pipeline.
+- **[Libraries Reference](docs/libraries.md)** — Detailed list of dependencies and their roles in the project.
+
+---
+
 ## Self-Hosting
 
 ### Prerequisites
@@ -265,6 +277,7 @@ UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-token
 FRONTEND_URL=https://your-frontend.vercel.app
 PORT=3001
+TMDB_API_KEY=your-tmdb-api-key # Optional but recommended for fetching high-res posters
 ```
 
 ### 3. Run Locally
