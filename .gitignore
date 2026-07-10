@@ -7,4 +7,5 @@ coverage
 .idea
 .vscode
 *.log
-*.tsbuildinfo   
+*.tsbuildinfo
+docs/interview/
