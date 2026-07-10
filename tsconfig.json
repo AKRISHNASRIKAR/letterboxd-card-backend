@@ -11,7 +11,8 @@
     "resolveJsonModule": true,
     "jsx": "react",
     "jsxFactory": "React.createElement",
-    "jsxFragmentFactory": "React.Fragment"
+    "jsxFragmentFactory": "React.Fragment",
+    "types": ["node", "jest"]
   },
   "include": ["src", "api"],
   "exclude": ["node_modules", "dist"]

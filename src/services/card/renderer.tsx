@@ -63,7 +63,7 @@ async function toBase64(url: string): Promise<string | null> {
       signal: AbortSignal.timeout(8000),
       headers: {
         Referer: "https://letterboxd.com/",
-        Accept: "image/webp,image/avif,image/*,*/*;q=0.8",
+        Accept: "image/jpeg,image/png;q=0.9,*/*;q=0.1",
         "User-Agent": ua,
         "Accept-Encoding": "gzip, deflate",
         "Cache-Control": "no-cache",
@@ -74,21 +74,16 @@ async function toBase64(url: string): Promise<string | null> {
 
     // Strip content-type parameters (e.g. "; charset=utf-8") — satori needs a bare MIME type
     const rawMime = res.headers.get("content-type") || "image/jpeg"
-    const mime = rawMime.split(";")[0].trim()
-    if (!mime.startsWith("image/")) return null
+    const mime = rawMime.split(";")[0].trim().toLowerCase()
+    // Satori image decoder only reliably supports JPEG and PNG. AVIF/WebP cause internal
+    // size decoder crashes ('u is not iterable').
+    if (mime !== "image/jpeg" && mime !== "image/jpg" && mime !== "image/png") {
+      return null;
+    }
 
     const buf = await res.arrayBuffer();
-    // Images under 200 bytes are degenerate placeholders (e.g. 42-byte VP8L WebP
-    // from Letterboxd empty-poster) that crash satori's internal image decoder.
+    // Images under 200 bytes are degenerate placeholders that crash satori's decoder.
     if (buf.byteLength < 200) return null
-
-    // Reject VP8L (lossless) WebP — satori's wasm decoder handles only lossy VP8/VP8X.
-    if (mime === "image/webp") {
-      const h = new Uint8Array(buf)
-      if (h.length >= 16 && h[12] === 0x56 && h[13] === 0x50 && h[14] === 0x38 && h[15] === 0x4c) {
-        return null // VP8L
-      }
-    }
 
     const b64 = Buffer.from(buf).toString("base64");
     return `data:${mime};base64,${b64}`;

@@ -1,0 +1,68 @@
+name: CI & API Health Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run a health check daily at 12:00 UTC
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Build & Unit/Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Type Check & Compilation (`npm run build`)
+        run: npm run build
+
+      - name: Run Automated SVG Render Tests (`npm test`)
+        run: npm test
+
+  production-health-check:
+    name: Live Production Endpoint Smoke Test
+    # Run smoke test on main branch push or schedule or manual trigger
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    steps:
+      - name: Verify Live /api/stats Endpoint (HTTP 200)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://letterboxd-card-backend.vercel.app/api/stats?user=akrishnasrikar")
+          echo "Status code for /api/stats: $STATUS"
+          if [ "$STATUS" -ne 200 ]; then
+            echo "ERROR: Expected HTTP 200 on /api/stats but got $STATUS"
+            exit 1
+          fi
+
+      - name: Verify Live /api/card Endpoint (HTTP 200 & Valid SVG)
+        run: |
+          # Allow up to 3 retries in case Vercel cold-start image fetch takes extra time
+          for i in 1 2 3; do
+            RESPONSE_HEADERS=$(curl -s -I "https://letterboxd-card-backend.vercel.app/api/card?user=akrishnasrikar&width=480&count=4")
+            STATUS=$(echo "$RESPONSE_HEADERS" | grep -i "^HTTP" | tail -n 1 | awk '{print $2}')
+            echo "Attempt $i Status code for /api/card: $STATUS"
+            if [ "$STATUS" -eq 200 ]; then
+              echo "SUCCESS: /api/card returned HTTP 200"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ERROR: /api/card failed to return HTTP 200 after 3 attempts."
+          exit 1
