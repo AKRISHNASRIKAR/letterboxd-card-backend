@@ -11,5 +11,5 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
     return res.status(429).json({ error: "Rate limited upstream, try again shortly" })
   }
  
-  res.status(500).json({ error: "Something went wrong" })
+  res.status(500).json({ error: "Something went wrong", debug: { message: err.message, name: err.name } })
 }
