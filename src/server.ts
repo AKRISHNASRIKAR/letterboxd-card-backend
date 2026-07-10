@@ -12,11 +12,15 @@ const app = express()
 app.set("trust proxy", 1)
 
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+  frameguard: false,
 }))
 app.use(cors({
-  origin: true,
-  credentials: true,
+  origin: "*",
+  methods: ["GET", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Content-Type", "Cache-Control", "X-Cache"],
 }))
 app.use(express.json())
 app.use(rateLimitMiddleware)
