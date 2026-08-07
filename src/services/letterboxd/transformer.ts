@@ -1,7 +1,7 @@
 import type { LetterboxdStats } from "../../types/letterboxd"
-import type { parseProfile }    from "./parser"
+import type { RawProfile }      from "./parser"
 
-type Raw = ReturnType<typeof parseProfile>
+type Raw = RawProfile
 
 function filmIdToPath(filmId: string): string {
   // "44542" -> "4/4/5/4/2/44542"
@@ -22,8 +22,10 @@ export function transform(raw: Raw): LetterboxdStats {
       lists:      raw.lists,
     },
     recentFilms: raw.recentFilms.map(f => {
-      // filmId → construct real CDN poster URL (preferred path)
-      // posterImgSrc → direct img src scraped from HTML (fallback, rare)
+      // filmId → construct real CDN poster URL (needed for HTML-scraped grids,
+      //          whose <img> tags are client-side placeholders)
+      // posterImgSrc → a poster URL we were handed outright (the RSS feed carries
+      //          one per entry, so feed-sourced films skip reconstruction)
       let posterUrl = ""
       if (f.filmId) {
         posterUrl = `https://a.ltrbxd.com/resized/film-poster/${filmIdToPath(f.filmId)}-${f.slug}-0-230-0-345-crop.jpg`

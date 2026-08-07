@@ -167,6 +167,32 @@ Browser / README
       image/svg+xml response
 ```
 
+### Where the stats come from
+
+Letterboxd sits behind Cloudflare, and a subset of member paths — the profile
+root `/<user>/`, anything under `/for/<year>/`, and `/page/<n>/` — is served a bot
+challenge to any client whose TLS handshake isn't a real browser's. No
+combination of request headers gets Node past it, so the profile page, which used
+to supply every figure in one request, is not a dependency any more. Each
+statistic is taken from a member sub-page that still answers:
+
+| Field                             | Source              |
+|-----------------------------------|---------------------|
+| display name, avatar, total films | `/<user>/films/`    |
+| following **and** followers       | `/<user>/followers/`|
+| lists                             | `/<user>/lists/`    |
+| recent watches, films this year   | `/<user>/rss/`      |
+
+The profile root is still requested alongside these, and wins wherever it comes
+back — locally it usually does, via a `curl` fallback that Cloudflare doesn't
+fingerprint the same way. It is the only source for an exact "films this year"
+count; without it that figure comes from the RSS feed and saturates at 50.
+
+A challenge page is valid HTML, so it used to parse into a profile of all zeroes
+that the API served as a `200`. `scraper.ts` now recognises one and the request
+fails with a `502` instead — a zeroed card can only mean a genuinely empty
+profile.
+
 **Tech stack:**
 
 - **[Express 5](https://expressjs.com/)** — API framework
@@ -199,16 +225,16 @@ lb-card-be/
 │   ├── controllers/
 │   │   ├── card.controller.ts      # Scrapes stats -> renders SVG -> returns image
 │   │   ├── stats.controller.ts     # Scrapes stats -> returns JSON
-│   │   ├── films.controller.ts     # Scrapes /films/ page -> returns JSON
+│   │   ├── films.controller.ts     # Reads the RSS feed -> returns JSON
 │   │   └── lists.controller.ts     # Scrapes /lists/ page -> returns JSON
 │   │
 │   ├── services/
 │   │   ├── cache.service.ts        # Upstash Redis get/set/bust
 │   │   ├── letterboxd/
-│   │   │   ├── index.ts            # scrapeStats() pipeline entry
-│   │   │   ├── scraper.ts          # HTTP fetch with throttle + retry
+│   │   │   ├── index.ts            # scrapeStats() — composes the sub-pages
+│   │   │   ├── scraper.ts          # HTTP fetch + throttle, retry, bot-block detection
 │   │   │   ├── selectors.ts        # CSS selectors for cheerio
-│   │   │   ├── parser.ts           # HTML -> raw data extraction
+│   │   │   ├── parser.ts           # HTML/RSS -> raw data extraction
 │   │   │   └── transformer.ts      # Raw data -> typed LetterboxdStats
 │   │   └── card/
 │   │       ├── renderer.tsx        # React JSX + Satori -> SVG card
