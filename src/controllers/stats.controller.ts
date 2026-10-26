@@ -1,12 +1,12 @@
 // Stats controller
 import { Request, Response, NextFunction } from "express"
 import { scrapeStats }         from "../services/letterboxd"
-import { getCached, setCached } from "../services/cache.service"
+import { getCached, setCached, statsCacheKey } from "../services/cache.service"
  
 export async function getStats(req: Request, res: Response, next: NextFunction) {
   try {
     const { user } = res.locals.params
-    const key    = `stats:v4:${user}`
+    const key    = statsCacheKey(user)
     const cached = await getCached(key)
     if (cached) return res.json({ data: cached, cached: true })
  

@@ -2,13 +2,13 @@
 import { Request, Response, NextFunction } from "express"
 import { scrapeStats }  from "../services/letterboxd"
 import { renderCard }   from "../services/card/renderer"
-import { getCached, setCached } from "../services/cache.service"
+import { getCached, setCached, statsCacheKey } from "../services/cache.service"
  
 export async function getCard(req: Request, res: Response, next: NextFunction) {
   try {
     const { user, count } = res.locals.params
 
-    const statsKey = `stats:v4:${user}`
+    const statsKey = statsCacheKey(user)
     let stats: Awaited<ReturnType<typeof scrapeStats>> | null =
       (await getCached(statsKey)) as Awaited<ReturnType<typeof scrapeStats>> | null
     if (!stats) {

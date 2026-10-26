@@ -183,10 +183,21 @@ statistic is taken from a member sub-page that still answers:
 | lists                             | `/<user>/lists/`    |
 | recent watches, films this year   | `/<user>/rss/`      |
 
-The profile root is still requested alongside these, and wins wherever it comes
-back — locally it usually does, via a `curl` fallback that Cloudflare doesn't
-fingerprint the same way. It is the only source for an exact "films this year"
-count; without it that figure comes from the RSS feed and saturates at 50.
+The profile root is requested alongside these and supplies the exact "This year"
+value when its link explicitly identifies the current UTC year. An explicit zero
+is valid. Without that field, the backend counts distinct current-year film slugs
+in the available RSS window and marks the result as a lower bound. RSS entries
+can be published out of watched-date order, so seeing an older watched date does
+not prove the feed contains the complete current-year history.
+
+The API includes `thisYearInfo` with `year`, `accuracy` (`exact`, `lower_bound`, or
+`unavailable`), and `source`. Both the SVG card and frontend show a `+` suffix for
+a lower bound, and a dash when unavailable. Diary entry totals are not substituted
+for the profile statistic: those measures must not be assumed interchangeable.
+Statistics use `stats:v5:<UTC-year>:<username>` cache keys with a one-hour TTL,
+invalidating old unqualified RSS totals and preventing previous-year reuse.
+Deploy the backend and frontend changes together. Existing embedded SVGs can
+remain cached by browsers/CDNs until their existing cache lifetime expires.
 
 A challenge page is valid HTML, so it used to parse into a profile of all zeroes
 that the API served as a `200`. `scraper.ts` now recognises one and the request

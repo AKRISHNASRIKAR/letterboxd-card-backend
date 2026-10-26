@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio"
 import type { Element } from "domhandler"
 import { SELECTORS, PAGE_SELECTORS } from "./selectors"
+import type { YearCountInfo } from "../../types/letterboxd"
 
 const num = (s: string) => parseInt(s.replace(/,/g, "").trim()) || 0
 
@@ -21,6 +22,7 @@ export interface RawProfile {
   avatar:      string
   totalFilms:  number
   thisYear:    number
+  thisYearInfo: YearCountInfo
   following:   number
   followers:   number
   lists:       number
@@ -30,6 +32,7 @@ export interface RawProfile {
 export const emptyProfile = (): RawProfile => ({
   username: "", displayName: "", memberSince: "", avatar: "",
   totalFilms: 0, thisYear: 0, following: 0, followers: 0, lists: 0,
+  thisYearInfo: { year: new Date().getUTCFullYear(), accuracy: "unavailable", source: null },
   recentFilms: [],
 })
 
@@ -74,11 +77,19 @@ function parseFilmTile($: cheerio.CheerioAPI, el: Element): RawFilm {
 }
 
 /** Profile root (`/<user>/`) — every field in one page, when it's reachable. */
-export function parseProfile(html: string): RawProfile {
+export function parseProfile(html: string, year = new Date().getUTCFullYear()): RawProfile {
   const $ = cheerio.load(html)
 
   const recentFilms = $(SELECTORS.recentFilms).slice(0, 8)
     .map((_, el) => parseFilmTile($, el as Element)).get()
+
+  // Require the requested year and distinguish a valid zero from a missing field.
+  const yearLink = $(SELECTORS.thisYear).filter((_, el) => {
+    const href = $(el).closest("a").attr("href") ?? ""
+    return new RegExp(`/diary/for/${year}/?(?:[?#].*)?$`).test(href)
+  }).first()
+  const yearText = yearLink.text().replace(/,/g, "").trim()
+  const yearCount = /^\d+$/.test(yearText) ? Number(yearText) : null
 
   return {
     username:    $(SELECTORS.username).attr("title") ?? "",
@@ -86,7 +97,8 @@ export function parseProfile(html: string): RawProfile {
     memberSince: $(SELECTORS.memberSince).first().text().trim(),
     avatar:      $(SELECTORS.avatar).first().attr("src") ?? "",
     totalFilms:  num($(SELECTORS.totalFilms).first().text()),
-    thisYear:    num($(SELECTORS.thisYear).first().text()),
+    thisYear:    yearCount ?? 0,
+    thisYearInfo: { year, accuracy: yearCount === null ? "unavailable" : "exact", source: yearCount === null ? null : "profile" },
     following:   num($(SELECTORS.following).first().text()),
     followers:   num($(SELECTORS.followers).first().text()),
     lists:       num($(SELECTORS.lists).first().text()),
@@ -152,14 +164,11 @@ function starsFromRating(raw: string): string {
 }
 
 /**
- * `/<user>/rss/` — the 50 most recent diary entries. Richer than the profile
- * page's four-film strip: it carries watch dates, ratings and, uniquely, direct
- * poster URLs, so posters need no CDN path reconstruction.
- *
- * The feed also contains list-publication items, which have no watchedDate and
- * are skipped.
+ * Recent diary entries, not a complete year history. Entries may be published
+ * out of watched-date order, so even a feed containing an older year can omit
+ * current-year watches. Always treat an RSS-derived count as a lower bound.
  */
-export function parseRss(xml: string) {
+export function parseRss(xml: string, currentYear = new Date().getUTCFullYear()) {
   const $ = cheerio.load(xml, { xmlMode: true })
 
   const entries = $("item").map((_, el) => {
@@ -186,17 +195,13 @@ export function parseRss(xml: string) {
   }>
 
   const displayName = $("channel > title").first().text().replace(/^Letterboxd\s*-\s*/, "").trim()
-  const year = String(new Date().getUTCFullYear())
+  const year = String(currentYear)
 
   return {
     displayName,
     entries,
-    /**
-     * Films logged this calendar year. Exact unless the member has logged more
-     * than the 50 entries the feed carries, in which case it's a floor — the
-     * profile page holds the true figure but Cloudflare blocks it.
-     */
-    thisYear:        entries.filter(e => e.watchedDate.startsWith(year)).length,
-    thisYearIsFloor: entries.length > 0 && entries.every(e => e.watchedDate.startsWith(year)),
+    // A conservative minimum: deduplicate film slugs so rewatches cannot inflate it.
+    thisYear: new Set(entries.filter(e => e.watchedDate.startsWith(`${year}-`) && e.slug).map(e => e.slug)).size,
+    thisYearIsFloor: true,
   }
 }

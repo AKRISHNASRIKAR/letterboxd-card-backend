@@ -9,18 +9,8 @@ import {
 import { transform } from "./transformer"
 
 /**
- * Build a member's profile.
- *
- * The profile root would give us everything in one request, but Cloudflare
- * challenges that path for non-browser clients (see ./scraper.ts). So we request
- * it alongside the sub-pages that *do* answer — /films/, /followers/, /lists/ and
- * /rss/ — and merge whatever comes back, letting the root win wherever it landed.
- * If Letterboxd ever relaxes that rule the root simply starts winning everywhere,
- * with no further changes here.
- *
- * Every statistic is recoverable from the sub-pages except the exact "films this
- * year" count, which the RSS feed can only floor at 50. That one field degrades;
- * nothing else does.
+ * Compose public member pages and RSS. Prefer an explicit current-year profile
+ * total. RSS supplies only a conservative lower bound of distinct films.
  */
 export async function scrapeStats(username: string) {
   const [root, films, network, lists, rss] = await Promise.allSettled([
@@ -43,15 +33,15 @@ export async function scrapeStats(username: string) {
   }
 
   const profile = emptyProfile()
-  let thisYearIsFloor = false
+  const year = profile.thisYearInfo.year
 
   // Weakest source first; each later source overwrites what it actually knows.
   if (rss.status === "fulfilled") {
-    const feed = parseRss(rss.value)
+    const feed = parseRss(rss.value, year)
     profile.displayName = feed.displayName
     profile.thisYear    = feed.thisYear
     profile.recentFilms = feed.entries.map(toRawFilm)
-    thisYearIsFloor     = feed.thisYearIsFloor
+    profile.thisYearInfo = { year, accuracy: "lower_bound", source: "rss" }
   }
 
   if (films.status === "fulfilled") {
@@ -76,16 +66,8 @@ export async function scrapeStats(username: string) {
   }
 
   if (root.status === "fulfilled") {
-    const parsed = parseProfile(root.value)
+    const parsed = parseProfile(root.value, year)
     mergeProfileRoot(profile, parsed)
-    if (parsed.thisYear) thisYearIsFloor = false
-  }
-
-  if (thisYearIsFloor) {
-    console.warn(
-      `[letterboxd] "${username}" has logged at least ${profile.thisYear} films this year; ` +
-      `reporting the feed's limit because the profile page is blocked.`,
-    )
   }
 
   profile.username    ||= username
@@ -104,8 +86,11 @@ function mergeProfileRoot(into: RawProfile, root: RawProfile): void {
   if (root.following)   into.following   = root.following
   if (root.followers)   into.followers   = root.followers
   if (root.lists)       into.lists       = root.lists
-  // The one field no other source can pin down exactly.
-  if (root.thisYear)    into.thisYear    = root.thisYear
+  // An explicit zero is authoritative too; truthiness would discard it.
+  if (root.thisYearInfo.accuracy === "exact") {
+    into.thisYear = root.thisYear
+    into.thisYearInfo = root.thisYearInfo
+  }
   // Recent watches stay with RSS: same ordering, more entries, real poster URLs.
   if (into.recentFilms.length === 0) into.recentFilms = root.recentFilms
 }

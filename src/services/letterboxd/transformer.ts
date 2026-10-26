@@ -21,6 +21,7 @@ export function transform(raw: Raw): LetterboxdStats {
       followers:  raw.followers,
       lists:      raw.lists,
     },
+    thisYearInfo: raw.thisYearInfo,
     recentFilms: raw.recentFilms.map(f => {
       // filmId → construct real CDN poster URL (needed for HTML-scraped grids,
       //          whose <img> tags are client-side placeholders)

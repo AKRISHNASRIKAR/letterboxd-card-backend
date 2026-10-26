@@ -6,6 +6,12 @@ export interface Film {
   posterUrl: string
 }
  
+export interface YearCountInfo {
+  year: number
+  accuracy: "exact" | "lower_bound" | "unavailable"
+  source: "profile" | "rss" | null
+}
+
 export interface LetterboxdStats {
   username:    string
   displayName: string
@@ -18,6 +24,7 @@ export interface LetterboxdStats {
     followers:  number
     lists:      number
   }
+  thisYearInfo: YearCountInfo
   recentFilms: Film[]
   fetchedAt:   number
 }

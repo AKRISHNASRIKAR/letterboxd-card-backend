@@ -26,3 +26,6 @@ export async function bustCache(pattern: string): Promise<void> {
   const keys = await redis.keys(pattern)
   if (keys.length) await redis.del(...keys)
 }
+/** Versioned and year-scoped so old RSS totals and last year cannot be reused. */
+export const statsCacheKey = (user: string, year = new Date().getUTCFullYear()) =>
+  `stats:v5:${year}:${user}`

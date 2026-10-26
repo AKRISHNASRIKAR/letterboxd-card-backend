@@ -210,6 +210,13 @@ const STAT_LABELS: Record<string, string> = {
   FOLLOWERS: "FOLLOWERS",
 }
 
+/** Missing and partial counts must not look like exact yearly totals. */
+export function formatYearCount(stats: LetterboxdStats): string {
+  if (!stats.thisYearInfo || stats.thisYearInfo.accuracy === "unavailable") return "—"
+  const value = stats.stats.thisYear.toLocaleString("en-US")
+  return stats.thisYearInfo.accuracy === "lower_bound" ? `${value}+` : value
+}
+
 // ── Render ────────────────────────────────────────────────────────────────────
 
 export async function renderCard(
@@ -235,7 +242,7 @@ export async function renderCard(
 
   const statItems = [
     { label: STAT_LABELS.FILMS,     value: stats.stats.totalFilms },
-    { label: STAT_LABELS.THIS_YEAR, value: stats.stats.thisYear   },
+    { label: STAT_LABELS.THIS_YEAR, value: formatYearCount(stats)},
     { label: STAT_LABELS.LISTS,     value: stats.stats.lists      },
     { label: STAT_LABELS.FOLLOWING, value: stats.stats.following  },
     { label: STAT_LABELS.FOLLOWERS, value: stats.stats.followers  },
@@ -310,7 +317,7 @@ export async function renderCard(
                 >
                   <span
                     style={{
-                      fontSize:   s.value >= 100000 ? 18 : 22,
+                      fontSize:   (typeof s.value === "number" ? s.value >= 100000 : s.value.length > 6) ? 18 : 22,
                       fontWeight: 700,
                       color:      C.green,
                       lineHeight: 1,

@@ -9,8 +9,8 @@ import { execFile } from "node:child_process"
 // over a raw TLS socket is challenged too), so those paths are unusable from here.
 //
 // The remaining member pages — /films/, /followers/, /lists/, /rss/ — answer
-// normally, and between them they carry every statistic the card needs. See
-// ./index.ts for how the profile is composed from them.
+// normally, but RSS only provides a lower bound for this year's diary count.
+// See ./index.ts for the profile fallback and data provenance.
 //
 // The failure this replaced: a challenge page is valid HTML, so cheerio parsed it
 // happily into a profile of all zeroes and the API served that as a 200.
@@ -78,8 +78,8 @@ function browserHeaders(ua: string): Record<string, string> {
 // ── curl escape hatch ─────────────────────────────────────────────────────────
 // Cloudflare fingerprints the TLS handshake, not the request: the same URL that
 // Node's fetch is challenged on is served normally to `curl --http1.1`. Where a
-// curl binary exists we use it to recover the profile root, the only page with an
-// exact "films this year" figure. When curl is missing or challenged too, callers
+// curl binary exists we use it to recover the profile root for its exact yearly
+// count. When curl is missing or challenged too, callers
 // fall back to the composed sub-page stats — so this is a bonus, never a
 // dependency. Probed once per process; a failure disables it for the rest of it.
 
