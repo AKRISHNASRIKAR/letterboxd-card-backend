@@ -194,8 +194,12 @@ The API includes `thisYearInfo` with `year`, `accuracy` (`exact`, `lower_bound`,
 `unavailable`), and `source`. Both the SVG card and frontend show a `+` suffix for
 a lower bound, and a dash when unavailable. Diary entry totals are not substituted
 for the profile statistic: those measures must not be assumed interchangeable.
-Statistics use `stats:v5:<UTC-year>:<username>` cache keys with a one-hour TTL,
-invalidating old unqualified RSS totals and preventing previous-year reuse.
+Statistics use `stats:v5:<UTC-year>:<username>` cache keys, preventing
+previous-year reuse. Exact results are cached for one hour; incomplete or
+unavailable counts are cached for 60 seconds so a successful profile request can
+replace them promptly. Cache reads also check `fetchedAt`, so incomplete records
+written with the old one-hour TTL are retried after a minute. Partial SVG responses
+have a 60-second shared-cache lifetime and no day-long stale-serving window.
 Deploy the backend and frontend changes together. Existing embedded SVGs can
 remain cached by browsers/CDNs until their existing cache lifetime expires.
 
@@ -346,7 +350,7 @@ Set your environment variables in the Vercel dashboard under **Settings > Enviro
 | Layer | Limit | Purpose |
 |-------|-------|---------|
 | **Client rate limit** | 30 req/min per IP | Protects the API from abuse |
-| **Redis cache** | 1-hour TTL per user | Avoids re-scraping Letterboxd on every request |
+| **Redis cache** | 1 hour for exact stats; 60 seconds for incomplete stats | Avoids repeated scraping while retrying incomplete yearly totals promptly |
 | **CDN cache** | `s-maxage=3600` | Vercel edge caches card images for 1 hour |
 | **Upstream throttle** | 2 req/sec to Letterboxd | Prevents getting blocked by Letterboxd |
 | **Retry logic** | 3 retries, exponential backoff | Handles transient Letterboxd failures |
