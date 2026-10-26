@@ -1,5 +1,7 @@
 // src/services/card/renderer.tsx
 import React from "react";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import satori from "satori";
 import type { LetterboxdStats } from "../../types/letterboxd";
 
@@ -13,35 +15,19 @@ declare module "react" {
 
 // ── Font cache ────────────────────────────────────────────────────────────────
 
-let _font400: ArrayBuffer | null = null;
-let _font700: ArrayBuffer | null = null;
+// Bundle fonts so a cold function does not depend on two external font CDNs.
+let fontPromise: Promise<[ArrayBuffer, ArrayBuffer]> | null = null;
 
-const FONT_SOURCES = [
-  "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest",
-  "https://fonts.gstatic.com/s/inter/v13",
-]
-
-async function fetchFontBuf(filename: string): Promise<ArrayBuffer | null> {
-  for (const base of FONT_SOURCES) {
-    try {
-      const r = await fetch(`${base}/${filename}`, { signal: AbortSignal.timeout(6000) })
-      if (r.ok) return r.arrayBuffer()
-    } catch {
-      // try next source
-    }
+function loadFonts(): Promise<[ArrayBuffer, ArrayBuffer]> {
+  if (!fontPromise) {
+    fontPromise = Promise.all([400, 700].map(async weight => {
+      const file = await readFile(join(process.cwd(), "assets", "fonts", `inter-latin-${weight}-normal.ttf`));
+      return Uint8Array.from(file).buffer;
+    })) as Promise<[ArrayBuffer, ArrayBuffer]>;
+    // Allow a retry if a transient filesystem problem occurs.
+    void fontPromise.catch(() => { fontPromise = null; });
   }
-  return null
-}
-
-async function loadFonts(): Promise<[ArrayBuffer | null, ArrayBuffer | null]> {
-  return Promise.all([
-    _font400
-      ? Promise.resolve(_font400)
-      : fetchFontBuf("latin-400-normal.ttf").then((b) => { if (b) _font400 = b; return b }),
-    _font700
-      ? Promise.resolve(_font700)
-      : fetchFontBuf("latin-700-normal.ttf").then((b) => { if (b) _font700 = b; return b }),
-  ])
+  return fontPromise;
 }
 
 // ── Image helpers ─────────────────────────────────────────────────────────────
@@ -52,7 +38,7 @@ const IMAGE_USER_AGENTS = [
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15",
 ];
 
-async function toBase64(url: string): Promise<string | null> {
+async function toBase64(url: string, signal = AbortSignal.timeout(5000)): Promise<string | null> {
   try {
     if (!url || !url.startsWith("http")) return null;
 
@@ -60,7 +46,7 @@ async function toBase64(url: string): Promise<string | null> {
       IMAGE_USER_AGENTS[Math.floor(Math.random() * IMAGE_USER_AGENTS.length)];
 
     const res = await fetch(url, {
-      signal: AbortSignal.timeout(8000),
+      signal,
       headers: {
         Referer: "https://letterboxd.com/",
         Accept: "image/jpeg,image/png;q=0.9,*/*;q=0.1",
@@ -98,7 +84,7 @@ async function toBase64(url: string): Promise<string | null> {
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY ?? ""
 
-async function fetchTmdbPoster(name: string, year: string): Promise<string | null> {
+async function fetchTmdbPoster(name: string, year: string, signal: AbortSignal): Promise<string | null> {
   if (!TMDB_API_KEY || !name) return null
   try {
     const query = encodeURIComponent(name)
@@ -113,7 +99,7 @@ async function fetchTmdbPoster(name: string, year: string): Promise<string | nul
     }
 
     const searchUrl = `https://api.themoviedb.org/3/search/movie?query=${query}${yearParam}${apiKeyParam}&language=en-US&page=1`
-    const res = await fetch(searchUrl, { signal: AbortSignal.timeout(6000), headers })
+    const res = await fetch(searchUrl, { signal, headers })
     if (!res.ok) return null
 
     const json = await res.json() as { results?: Array<{ poster_path?: string | null }> }
@@ -122,7 +108,7 @@ async function fetchTmdbPoster(name: string, year: string): Promise<string | nul
     // Fallback 1: Search without release year (handles festival vs. wide release year mismatches between LB and TMDB)
     if (!posterPath && year) {
       const fallbackUrl = `https://api.themoviedb.org/3/search/movie?query=${query}${apiKeyParam}&language=en-US&page=1`
-      const fallbackRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(6000), headers })
+      const fallbackRes = await fetch(fallbackUrl, { signal, headers })
       if (fallbackRes.ok) {
         const fallbackJson = await fallbackRes.json() as { results?: Array<{ poster_path?: string | null }> }
         posterPath = fallbackJson.results?.[0]?.poster_path
@@ -132,7 +118,7 @@ async function fetchTmdbPoster(name: string, year: string): Promise<string | nul
     // Fallback 2: Search multi-catalog (handles TV shows / miniseries logged on Letterboxd)
     if (!posterPath) {
       const multiUrl = `https://api.themoviedb.org/3/search/multi?query=${query}${apiKeyParam}&language=en-US&page=1`
-      const multiRes = await fetch(multiUrl, { signal: AbortSignal.timeout(6000), headers })
+      const multiRes = await fetch(multiUrl, { signal, headers })
       if (multiRes.ok) {
         const multiJson = await multiRes.json() as { results?: Array<{ poster_path?: string | null }> }
         posterPath = multiJson.results?.find(r => r.poster_path)?.poster_path
@@ -143,7 +129,7 @@ async function fetchTmdbPoster(name: string, year: string): Promise<string | nul
 
     // w342 is a good balance of quality vs. size for the 105×158px slot
     const imgUrl = `https://image.tmdb.org/t/p/w342${posterPath}`
-    return toBase64(imgUrl)
+    return toBase64(imgUrl, signal)
   } catch {
     return null
   }
@@ -151,9 +137,11 @@ async function fetchTmdbPoster(name: string, year: string): Promise<string | nul
 
 // Resolves a poster for one film: tries Letterboxd CDN first, falls back to TMDB.
 async function resolvePoster(posterUrl: string, name: string, year: string): Promise<string | null> {
-  const lbResult = await toBase64(posterUrl)
-  if (lbResult) return lbResult
-  return fetchTmdbPoster(name, year)
+  // One budget covers the original image plus every TMDB fallback.
+  const signal = AbortSignal.timeout(5000)
+  const lbResult = await toBase64(posterUrl, signal)
+  if (lbResult || signal.aborted) return lbResult
+  return fetchTmdbPoster(name, year, signal)
 }
 
 function timeAgo(ts: number): string {

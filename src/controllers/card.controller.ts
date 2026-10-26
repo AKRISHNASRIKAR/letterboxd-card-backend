@@ -1,26 +1,16 @@
-// Card controller
 import { Request, Response, NextFunction } from "express"
-import { scrapeStats }  from "../services/letterboxd"
-import { renderCard }   from "../services/card/renderer"
-import { getCached, setCached, statsCacheKey, statsCacheTtl, isStatsCacheFresh } from "../services/cache.service"
- 
+import { performance } from "node:perf_hooks"
+import { getProfileStats } from "../services/profile.service"
+import { getRenderedCard } from "../services/card/cache"
+
 export async function getCard(req: Request, res: Response, next: NextFunction) {
   try {
     const { user, count } = res.locals.params
-
-    const statsKey = statsCacheKey(user)
-    let stats: Awaited<ReturnType<typeof scrapeStats>> | null =
-      (await getCached(statsKey)) as Awaited<ReturnType<typeof scrapeStats>> | null
-    const cacheHit = !!stats && isStatsCacheFresh(stats)
-    if (!cacheHit) {
-      stats = await scrapeStats(user)
-      await setCached(statsKey, stats, statsCacheTtl(stats))
-    }
-
-    // The cache-hit branch also guarantees stats is present.
-    if (!stats) throw new Error("Profile statistics unavailable")
-
-    const svg = await renderCard(stats, +count)
+    const start = performance.now()
+    const { stats, cacheHit } = await getProfileStats(user)
+    const profileMs = performance.now() - start
+    const renderStart = performance.now()
+    const card = await getRenderedCard(stats, +count)
 
     res.setHeader("Content-Type", "image/svg+xml")
     res.setHeader("Access-Control-Allow-Origin", "*")
@@ -29,7 +19,9 @@ export async function getCard(req: Request, res: Response, next: NextFunction) {
       ? "s-maxage=3600, stale-while-revalidate=86400"
       : "max-age=0, s-maxage=60, must-revalidate")
     res.setHeader("X-Cache", cacheHit ? "HIT" : "MISS")
-    res.send(svg)
+    res.setHeader("X-Card-Cache", card.cacheHit ? "HIT" : "MISS")
+    res.setHeader("Server-Timing", `profile;dur=${profileMs.toFixed(1)}, card;dur=${(performance.now() - renderStart).toFixed(1)}`)
+    res.send(card.svg)
   } catch (err) {
     next(err)
   }
