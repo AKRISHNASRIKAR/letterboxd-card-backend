@@ -70,6 +70,17 @@ export async function scrapeStats(username: string) {
     mergeProfileRoot(profile, parsed)
   }
 
+  if (profile.thisYearInfo.accuracy !== "exact") {
+    const reason = root.status === "fulfilled"
+      ? "profile_count_missing"
+      : root.reason instanceof BlockedError ? "profile_blocked" : "profile_fetch_failed"
+    profile.thisYearInfo.reason = reason
+    // Never log upstream HTML, cookies, credentials, or raw request headers.
+    console.warn(JSON.stringify({
+      event: "letterboxd_year_count_incomplete", username, year, reason,
+    }))
+  }
+
   profile.username    ||= username
   profile.displayName ||= profile.username
 

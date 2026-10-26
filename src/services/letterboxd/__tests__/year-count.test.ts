@@ -20,13 +20,14 @@ const feed = (dates: string[]) => `<rss xmlns:letterboxd="https://letterboxd.com
 beforeEach(() => {
   jest.useFakeTimers().setSystemTime(new Date('2026-10-26T12:00:00Z'))
   jest.resetAllMocks()
+  jest.spyOn(console, 'warn').mockImplementation(() => {})
   jest.mocked(scraper.fetchProfile).mockRejectedValue(new scraper.BlockedError('profile'))
   jest.mocked(scraper.fetchFilms).mockResolvedValue('<html></html>')
   jest.mocked(scraper.fetchNetwork).mockResolvedValue('<html></html>')
   jest.mocked(scraper.fetchLists).mockResolvedValue('<html></html>')
   jest.mocked(scraper.fetchRss).mockResolvedValue(feed(['2026-10-25', '2025-11-14']))
 })
-afterEach(() => jest.useRealTimers())
+afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks() })
 
 test('profile extracts a full comma-separated count', () => {
   expect(parseProfile(profile('1,234')).thisYear).toBe(1234)
@@ -82,4 +83,24 @@ test('cache keys separate years and invalidate the old stats:v4 values', () => {
 test('RSS lower bound deduplicates rewatches of the same film', () => {
   const xml = feed(['2026-10-25', '2026-10-24']).replace('film-1/', 'film-0/')
   expect(parseRss(xml).thisYear).toBe(1)
+})
+
+test('a cold blocked-profile result explicitly identifies the upstream failure', async () => {
+  const result = await scrapeStats('fixture')
+  expect(result.thisYearInfo.reason).toBe('profile_blocked')
+  expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('letterboxd_year_count_incomplete'))
+})
+test('a successful fetch with missing year markup is distinguished from blocking', async () => {
+  jest.mocked(scraper.fetchProfile).mockResolvedValue('<main>Profile without yearly statistic</main>')
+  expect((await scrapeStats('fixture')).thisYearInfo.reason).toBe('profile_count_missing')
+})
+test('network failures are distinguished from upstream blocks', async () => {
+  jest.mocked(scraper.fetchProfile).mockRejectedValue(new Error('network failure'))
+  expect((await scrapeStats('fixture')).thisYearInfo.reason).toBe('profile_fetch_failed')
+})
+test('an exact profile count carries no incomplete-source warning', async () => {
+  jest.mocked(scraper.fetchProfile).mockResolvedValue(profile('100'))
+  const result = await scrapeStats('fixture')
+  expect(result.thisYearInfo.reason).toBeUndefined()
+  expect(console.warn).not.toHaveBeenCalled()
 })
